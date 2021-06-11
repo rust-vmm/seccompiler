@@ -1,4 +1,7 @@
-# Crate Name
+# Seccompiler
+
+Provides easy-to-use linux [seccomp-bpf](https://www.kernel.org/doc/Documentation/prctl/seccomp_filter.txt)
+jailing for rust-based VMMs.
 
 ## Design
 
