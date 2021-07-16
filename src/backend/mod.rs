@@ -10,7 +10,11 @@ use core::fmt::Formatter;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
-use bpf::{AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64};
+use bpf::{
+    AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO,
+    SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_MASK,
+    SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
+};
 
 /// Backend Result type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -59,6 +63,74 @@ impl TryFrom<&str> for TargetArch {
             "x86_64" => Ok(TargetArch::x86_64),
             "aarch64" => Ok(TargetArch::aarch64),
             _ => Err(Error::InvalidTargetArch(input.to_string())),
+        }
+    }
+}
+
+/// Comparison to perform when matching a condition.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SeccompCmpOp {
+    /// Argument value is equal to the specified value.
+    Eq,
+    /// Argument value is greater than or equal to the specified value.
+    Ge,
+    /// Argument value is greater than specified value.
+    Gt,
+    /// Argument value is less than or equal to the specified value.
+    Le,
+    /// Argument value is less than specified value.
+    Lt,
+    /// Masked bits of argument value are equal to masked bits of specified value.
+    MaskedEq(u64),
+    /// Argument value is not equal to specified value.
+    Ne,
+}
+
+/// Seccomp argument value length.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SeccompCmpArgLen {
+    /// Argument value length is 4 bytes.
+    Dword,
+    /// Argument value length is 8 bytes.
+    Qword,
+}
+
+/// Actions that `seccomp` can apply to process calling a syscall.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SeccompAction {
+    /// Allows syscall.
+    Allow,
+    /// Returns from syscall with specified error number.
+    Errno(u32),
+    /// Kills calling thread.
+    KillThread,
+    /// Kills calling process.
+    KillProcess,
+    /// Same as allow but logs call.
+    Log,
+    /// Notifies tracing process of the caller with respective number.
+    Trace(u32),
+    /// Sends `SIGSYS` to the calling process.
+    Trap,
+}
+
+impl From<SeccompAction> for u32 {
+    /// Return codes of the BPF program for each action.
+    ///
+    /// # Arguments
+    ///
+    /// * `action` - The [`SeccompAction`] that the kernel will take.
+    ///
+    /// [`SeccompAction`]: struct.SeccompAction.html
+    fn from(action: SeccompAction) -> Self {
+        match action {
+            SeccompAction::Allow => SECCOMP_RET_ALLOW,
+            SeccompAction::Errno(x) => SECCOMP_RET_ERRNO | (x & SECCOMP_RET_MASK),
+            SeccompAction::KillThread => SECCOMP_RET_KILL_THREAD,
+            SeccompAction::KillProcess => SECCOMP_RET_KILL_PROCESS,
+            SeccompAction::Log => SECCOMP_RET_LOG,
+            SeccompAction::Trace(x) => SECCOMP_RET_TRACE | (x & SECCOMP_RET_MASK),
+            SeccompAction::Trap => SECCOMP_RET_TRAP,
         }
     }
 }
