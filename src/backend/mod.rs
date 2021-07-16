@@ -1,11 +1,16 @@
 // Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
+
 //! This module defines the data structures used for the intermmediate representation (IR),
 //! as well as the logic for compiling the filter into BPF code, the final form of the filter.
+
+mod bpf;
 
 use core::fmt::Formatter;
 use std::convert::TryFrom;
 use std::fmt::Display;
+
+use bpf::{AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64};
 
 /// Backend Result type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -35,6 +40,16 @@ pub enum TargetArch {
     x86_64,
     /// aarch64 arch
     aarch64,
+}
+
+impl TargetArch {
+    /// Get the arch audit value. Used for the runtime arch check embedded in the BPF filter.
+    fn get_audit_value(self) -> u32 {
+        match self {
+            TargetArch::x86_64 => AUDIT_ARCH_X86_64,
+            TargetArch::aarch64 => AUDIT_ARCH_AARCH64,
+        }
+    }
 }
 
 impl TryFrom<&str> for TargetArch {
