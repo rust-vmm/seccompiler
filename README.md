@@ -183,11 +183,11 @@ SeccompFilter::new(
     SeccompAction::Allow,
     // target architecture of filter
     TargetArch::x86_64,
-    // rule set
+    // rule set - BTreeMap<i64, Vec<SeccompRule>>
     vec![
         (
             libc::SYS_accept4,
-            vec![]
+            vec![SeccompRule::empty()]
         ),
         (
             libc::SYS_fcntl,
@@ -215,7 +215,7 @@ SeccompFilter::new(
                 ])
             ]
         )
-    ]
+    ].into_iter().collect()
 )?
 ```
 
@@ -267,8 +267,9 @@ For **Rust filters**, it’s enough to perform a `try_into()` cast, from a
 
 ```rust
 let seccomp_filter = SeccompFilter::new(
-    rule_map,
+    rules,
     SeccompAction::Trap,
+    SeccompAction::Allow,
     seccompiler::TargetArch::x86_64
 )?;
 
