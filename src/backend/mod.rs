@@ -6,8 +6,10 @@
 
 mod bpf;
 mod condition;
+mod rule;
 
 pub use condition::SeccompCondition;
+pub use rule::SeccompRule;
 
 use core::fmt::Formatter;
 use std::convert::TryFrom;
@@ -25,6 +27,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Backend-related errors.
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// Attempting to associate an empty vector of conditions to a rule.
+    EmptyRule,
     /// Argument index of a `SeccompCondition` exceeds the maximum linux syscall index.
     InvalidArgumentNumber,
     /// Invalid TargetArch.
@@ -36,6 +40,9 @@ impl Display for Error {
         use self::Error::*;
 
         match self {
+            EmptyRule => {
+                write!(f, "The condition vector of a rule cannot be empty.")
+            }
             InvalidArgumentNumber => {
                 write!(
                     f,
