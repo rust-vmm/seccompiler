@@ -5,13 +5,16 @@
 //! as well as the logic for compiling the filter into BPF code, the final form of the filter.
 
 mod bpf;
+mod condition;
+
+pub use condition::SeccompCondition;
 
 use core::fmt::Formatter;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
 use bpf::{
-    AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO,
+    ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO,
     SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_MASK,
     SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
@@ -22,6 +25,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Backend-related errors.
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// Argument index of a `SeccompCondition` exceeds the maximum linux syscall index.
+    InvalidArgumentNumber,
     /// Invalid TargetArch.
     InvalidTargetArch(String),
 }
@@ -31,6 +36,13 @@ impl Display for Error {
         use self::Error::*;
 
         match self {
+            InvalidArgumentNumber => {
+                write!(
+                    f,
+                    "The seccomp rule contains an invalid argument index. Maximum index value: {}",
+                    ARG_NUMBER_MAX
+                )
+            }
             InvalidTargetArch(arch) => write!(f, "Invalid target arch: {}.", arch.to_string()),
         }
     }
