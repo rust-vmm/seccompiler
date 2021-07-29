@@ -3,19 +3,12 @@ use std::collections::BTreeMap;
 use seccompiler::SeccompCmpArgLen::*;
 use seccompiler::SeccompCmpOp::*;
 use seccompiler::{
-    sock_filter, BpfProgram, SeccompAction, SeccompCondition as Cond, SeccompFilter, SeccompRule,
+    apply_filter, sock_filter, BpfProgram, Error, SeccompAction, SeccompCondition as Cond,
+    SeccompFilter, SeccompRule,
 };
 use std::convert::TryInto;
 use std::env::consts::ARCH;
 use std::thread;
-
-// BPF structure definition for filter array.
-// See /usr/include/linux/filter.h .
-#[repr(C)]
-struct sock_fprog {
-    pub len: ::std::os::raw::c_ushort,
-    pub filter: *const sock_filter,
-}
 
 // The type of the `req` parameter is different for the `musl` library. This will enable
 // successful build for other non-musl libraries.
@@ -41,28 +34,6 @@ const EXTRA_SYSCALLS: [i64; 6] = [
     libc::SYS_futex,
 ];
 
-fn install_filter(bpf_filter: BpfProgram) {
-    unsafe {
-        {
-            let rc = libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-            assert_eq!(rc, 0);
-        }
-        let bpf_prog = sock_fprog {
-            len: bpf_filter.len() as u16,
-            filter: bpf_filter.as_ptr(),
-        };
-        let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
-        {
-            let rc = libc::prctl(
-                libc::PR_SET_SECCOMP,
-                libc::SECCOMP_MODE_FILTER,
-                bpf_prog_ptr,
-            );
-            assert_eq!(rc, 0);
-        }
-    }
-}
-
 fn validate_seccomp_filter(
     rules: Vec<(i64, Vec<SeccompRule>)>,
     validation_fn: fn(),
@@ -72,7 +43,7 @@ fn validate_seccomp_filter(
 
     // Make sure the extra needed syscalls are allowed
     for syscall in EXTRA_SYSCALLS.iter() {
-        rule_map.entry(*syscall).or_insert_with(std::vec::Vec::new);
+        rule_map.entry(*syscall).or_insert_with(Vec::new);
     }
 
     // Build seccomp filter.
@@ -90,7 +61,7 @@ fn validate_seccomp_filter(
     // the seccomp filter for the entire unit tests process.
     let errno = thread::spawn(move || {
         // Install the filter.
-        install_filter(filter);
+        apply_filter(&filter).unwrap();
 
         // Call the validation fn.
         validation_fn();
@@ -129,7 +100,7 @@ fn test_empty_filter() {
     // This should allow any system calls.
     let pid = thread::spawn(move || {
         // Install the filter.
-        install_filter(prog);
+        apply_filter(&prog).unwrap();
 
         unsafe { libc::getpid() }
     })
@@ -162,7 +133,7 @@ fn test_invalid_architecture() {
     let pid = unsafe { libc::fork() };
     match pid {
         0 => {
-            install_filter(prog);
+            apply_filter(&prog).unwrap();
 
             unsafe {
                 libc::getpid();
@@ -718,4 +689,97 @@ fn test_complex_filter() {
             None,
         );
     }
+}
+
+#[test]
+fn test_filter_apply() {
+    // Test filter too large.
+    thread::spawn(|| {
+        let filter: BpfProgram = vec![
+                sock_filter {
+                    code: 6,
+                    jt: 0,
+                    jf: 0,
+                    k: 0,
+                };
+                5000 // Limit is 4096
+            ];
+
+        // Apply seccomp filter.
+        assert!(matches!(
+            apply_filter(&filter).unwrap_err(),
+            Error::Prctl(_)
+        ));
+    })
+    .join()
+    .unwrap();
+
+    // Test empty filter.
+    thread::spawn(|| {
+        let filter: BpfProgram = vec![];
+
+        assert_eq!(filter.len(), 0);
+
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
+
+        assert!(matches!(
+            apply_filter(&filter).unwrap_err(),
+            Error::EmptyFilter
+        ));
+
+        // test that seccomp level remains 0 on failure.
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
+    })
+    .join()
+    .unwrap();
+
+    // Test invalid BPF code.
+    thread::spawn(|| {
+        let filter = vec![sock_filter {
+            // invalid opcode
+            code: 9999,
+            jt: 0,
+            jf: 0,
+            k: 0,
+        }];
+
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
+
+        assert!(matches!(
+            apply_filter(&filter).unwrap_err(),
+            Error::Prctl(_)
+        ));
+
+        // test that seccomp level remains 0 on failure.
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
+    })
+    .join()
+    .unwrap();
+
+    // Test valid filter and assert seccomp level.
+    thread::spawn(|| {
+        let filter = SeccompFilter::new(
+            BTreeMap::new(),
+            SeccompAction::Allow,
+            SeccompAction::Trap,
+            ARCH.try_into().unwrap(),
+        )
+        .unwrap();
+        let prog: BpfProgram = filter.try_into().unwrap();
+
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
+
+        apply_filter(&prog).unwrap();
+
+        // test that seccomp level is 2 (SECCOMP_MODE_FILTER).
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 2);
+    })
+    .join()
+    .unwrap();
 }
