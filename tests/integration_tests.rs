@@ -141,6 +141,45 @@ fn test_empty_filter() {
 }
 
 #[test]
+fn test_invalid_architecture() {
+    // A filter compiled for another architecture should kill the process upon evaluation.
+    // The process will appear as if it received a SIGSYS.
+    let mut arch = "aarch64";
+
+    if ARCH == "aarch64" {
+        arch = "x86_64";
+    }
+
+    let filter = SeccompFilter::new(
+        BTreeMap::new(),
+        SeccompAction::Allow,
+        SeccompAction::Trap,
+        arch.try_into().unwrap(),
+    )
+    .unwrap();
+    let prog: BpfProgram = filter.try_into().unwrap();
+
+    let pid = unsafe { libc::fork() };
+    match pid {
+        0 => {
+            install_filter(prog);
+
+            unsafe {
+                libc::getpid();
+            }
+        }
+        child_pid => {
+            let mut child_status: i32 = -1;
+            let pid_done = unsafe { libc::waitpid(child_pid, &mut child_status, 0) };
+            assert_eq!(pid_done, child_pid);
+
+            assert!(libc::WIFSIGNALED(child_status));
+            assert_eq!(libc::WTERMSIG(child_status), libc::SIGSYS);
+        }
+    };
+}
+
+#[test]
 fn test_eq_operator() {
     // check use cases for DWORD
     let rules = vec![(
