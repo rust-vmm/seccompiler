@@ -36,26 +36,26 @@ const SECCOMP_DATA_ARCH_OFFSET: u8 = 4;
 pub const SECCOMP_DATA_ARGS_OFFSET: u8 = 16;
 pub const SECCOMP_DATA_ARG_SIZE: u8 = 8;
 
-/// Builds a `jump` BPF instruction.
-///
-/// # Arguments
-///
-/// * `code` - The operation code.
-/// * `jt` - The jump offset in case the operation returns `true`.
-/// * `jf` - The jump offset in case the operation returns `false`.
-/// * `k` - The operand.
+// Builds a `jump` BPF instruction.
+//
+// # Arguments
+//
+// * `code` - The operation code.
+// * `jt` - The jump offset in case the operation returns `true`.
+// * `jf` - The jump offset in case the operation returns `false`.
+// * `k` - The operand.
 #[allow(non_snake_case)]
 #[inline(always)]
 pub(crate) fn BPF_JUMP(code: u16, k: u32, jt: u8, jf: u8) -> sock_filter {
     sock_filter { code, jt, jf, k }
 }
 
-/// Builds a "statement" BPF instruction.
-///
-/// # Arguments
-///
-/// * `code` - The operation code.
-/// * `k` - The operand.
+// Builds a "statement" BPF instruction.
+//
+// # Arguments
+//
+// * `code` - The operation code.
+// * `k` - The operand.
 #[allow(non_snake_case)]
 #[inline(always)]
 pub(crate) fn BPF_STMT(code: u16, k: u32) -> sock_filter {
@@ -67,7 +67,7 @@ pub(crate) fn BPF_STMT(code: u16, k: u32) -> sock_filter {
     }
 }
 
-/// Builds a sequence of BPF instructions that validate the underlying architecture.
+// Builds a sequence of BPF instructions that validate the underlying architecture.
 #[inline(always)]
 pub(crate) fn build_arch_validation_sequence(target_arch: TargetArch) -> Vec<sock_filter> {
     let audit_arch_value = target_arch.get_audit_value();
@@ -134,7 +134,7 @@ pub const AUDIT_ARCH_X86_64: u32 = 62 | 0x8000_0000 | 0x4000_0000;
 pub const AUDIT_ARCH_AARCH64: u32 = 183 | 0x8000_0000 | 0x4000_0000;
 
 /// BPF instruction structure definition.
-/// See /usr/include/linux/filter.h .
+// See /usr/include/linux/filter.h .
 // We cannot use the `libc::sock_filter` definition since it doesn't implement `Debug` and
 // `PartialEq`.
 #[repr(C)]

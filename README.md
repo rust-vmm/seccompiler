@@ -177,45 +177,42 @@ multiple filters.
 
 ```rust
 SeccompFilter::new(
+    // rule set - BTreeMap<i64, Vec<SeccompRule>>
+    vec![
+        (libc::SYS_accept4, vec![]),
+        (
+            libc::SYS_fcntl,
+            vec![
+                SeccompRule::new(vec![
+                    Cond::new(1,
+                        SeccompCmpArgLen::Dword,
+                        SeccompCmpOp::Eq,
+                        libc::F_SETFD as u64
+                    )?,
+                    Cond::new(
+                        2,
+                        SeccompCmpArgLen::Dword,
+                        SeccompCmpOp::Eq,
+                        libc::FD_CLOEXEC as u64,
+                    )?,
+                ])?,
+                SeccompRule::new(vec![
+                    Cond::new(
+                        1,
+                        SeccompCmpArgLen::Dword,
+                        SeccompCmpOp::Eq,
+                        libc::F_GETFD as u64,
+                    )?
+                ])?
+            ]
+        )
+    ].into_iter().collect(),
     // default_action
     SeccompAction::KillProcess,
     // filter_action
     SeccompAction::Allow,
     // target architecture of filter
     TargetArch::x86_64,
-    // rule set - BTreeMap<i64, Vec<SeccompRule>>
-    vec![
-        (
-            libc::SYS_accept4,
-            vec![SeccompRule::empty()]
-        ),
-        (
-            libc::SYS_fcntl,
-            vec![
-                SeccompRule::new(vec![
-                    Cond::new(1,
-                        SeccompCmpArgLen::DWORD,
-                        SeccompCmpOp::Eq,
-                        libc::F_SETFD
-                    )?,
-                    Cond::new(
-                        2,
-                        SeccompCmpArgLen::DWORD,
-                        SeccompCmpOp::Eq,
-                        libc::FD_CLOEXEC,
-                    )?,
-                ]),
-                SeccompRule::new(vec![
-                    Cond::new(
-                        1,
-                        SeccompCmpArgLen::DWORD,
-                        SeccompCmpOp::Eq,
-                        libc::F_GETFD,
-                    )?
-                ])
-            ]
-        )
-    ].into_iter().collect()
 )?
 ```
 

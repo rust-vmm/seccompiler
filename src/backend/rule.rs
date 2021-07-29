@@ -4,7 +4,7 @@ use std::convert::{From, TryFrom};
 /// Rule that a filter attempts to match for a syscall.
 ///
 /// If all conditions match then rule gets matched.
-/// A syscall can have many rules associated. If either of them matches, the on-match action of the
+/// A syscall can have many rules associated. If either of them matches, the `filter_action` of the
 /// [`SeccompFilter`] is triggered.
 ///
 /// [`SeccompFilter`]: struct.SeccompFilter.html
@@ -15,11 +15,22 @@ pub struct SeccompRule {
 }
 
 impl SeccompRule {
-    /// Creates a new rule. Rules with 0 conditions always match, regardless of argument values.
+    /// Creates a new rule. Rules with 0 conditions are not allowed.
     ///
     /// # Arguments
     ///
-    /// * `conditions` - Vector of [`SeccompCondition`] that the syscall must match.
+    /// * `conditions` - Vector of [`SeccompCondition`]s that the syscall must match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use seccompiler::{SeccompCondition, SeccompCmpArgLen, SeccompCmpOp, SeccompRule};
+    ///
+    /// let rule = SeccompRule::new(vec![
+    ///     SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap(),
+    ///     SeccompCondition::new(1, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap(),
+    /// ]).unwrap();
+    /// ```
     ///
     /// [`SeccompCondition`]: struct.SeccompCondition.html
     pub fn new(conditions: Vec<SeccompCondition>) -> Result<Self> {
