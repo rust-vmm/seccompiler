@@ -128,7 +128,7 @@ pub enum SeccompCmpArgLen {
     Qword,
 }
 
-/// Actions that `seccomp` can apply to process calling a syscall.
+/// Actions that a seccomp filter can return for a syscall.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SeccompAction {
     /// Allows syscall.
@@ -139,7 +139,7 @@ pub enum SeccompAction {
     KillThread,
     /// Kills calling process.
     KillProcess,
-    /// Same as allow but logs call.
+    /// Allows syscall after logging it.
     Log,
     /// Notifies tracing process of the caller with respective number.
     Trace(u32),

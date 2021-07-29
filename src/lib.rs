@@ -12,6 +12,93 @@
 //!
 //! Writing BPF programs by hand is difficult and error-prone. This crate provides high-level
 //! wrappers for working with system call filtering.
+//!
+//! # Supported platforms
+//!
+//! Due to the fact that seccomp is a Linux-specific feature, this crate is
+//! supported only on Linux systems.
+//!
+//! Supported host architectures:
+//! - Little-endian x86_64
+//! - Little-endian aarch64
+//!
+//! # Terminology
+//!
+//! The smallest unit of the [`SeccompFilter`] is the [`SeccompCondition`], which is a
+//! comparison operation applied to the current system call. It’s parametrised by
+//! the argument index, the length of the argument, the operator and the actual
+//! expected value.
+//!
+//! Going one step further, a [`SeccompRule`] is a vector of [`SeccompCondition`]s,
+//! that must all match for the rule to be considered matched. In other words, a
+//! rule is a collection of **and-bound** conditions for a system call.
+//!
+//! Finally, at the top level, there’s the [`SeccompFilter`]. The filter can be
+//! viewed as a collection of syscall-associated rules, with a predefined on-match
+//! [`SeccompAction`] and a default [`SeccompAction`] that is returned if none of the rules match.
+//!
+//! In a filter, each system call number maps to a vector of **or-bound** rules.
+//! In order for the filter to match, it is enough that one rule associated to the
+//! system call matches. A system call may also map to an empty rule vector, which
+//! means that the system call will match, regardless of the actual arguments.
+//!
+//! # Example
+//!
+//! The following example defines and installs a simple filter, that sends SIGSYS for `accept4`,
+//! `fcntl(any, F_SETFD, FD_CLOEXEC, ..)` and `fcntl(any, F_GETFD, ...)`.
+//! It allows any other syscalls.
+//!
+//! ```
+//! use std::convert::TryInto;
+//! use seccompiler::{
+//!     BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition,
+//!     SeccompFilter, SeccompRule
+//! };
+//!
+//! let filter: BpfProgram = SeccompFilter::new(
+//!     vec![
+//!         (libc::SYS_accept4, vec![]),
+//!         (
+//!             libc::SYS_fcntl,
+//!             vec![
+//!                 SeccompRule::new(vec![
+//!                     SeccompCondition::new(
+//!                         1,
+//!                       SeccompCmpArgLen::Dword,
+//!                         SeccompCmpOp::Eq,
+//!                         libc::F_SETFD as u64,
+//!                     ).unwrap(),
+//!                     SeccompCondition::new(
+//!                         2,
+//!                         SeccompCmpArgLen::Dword,
+//!                         SeccompCmpOp::Eq,
+//!                         libc::FD_CLOEXEC as u64,
+//!                     ).unwrap(),
+//!                 ]).unwrap(),
+//!                 SeccompRule::new(vec![SeccompCondition::new(
+//!                     1,
+//!                     SeccompCmpArgLen::Dword,
+//!                     SeccompCmpOp::Eq,
+//!                     libc::F_GETFD as u64,
+//!                 ).unwrap()]).unwrap(),
+//!             ],
+//!         ),
+//!     ]
+//!     .into_iter()
+//!     .collect(),
+//!     SeccompAction::Allow,
+//!     SeccompAction::Trap,
+//!     std::env::consts::ARCH.try_into().unwrap(),
+//! ).unwrap().try_into().unwrap();
+//!
+//! seccompiler::apply_filter(&filter).unwrap();
+//! ```
+//!
+//! [`SeccompFilter`]: struct.SeccompFilter.html
+//! [`SeccompCondition`]: struct.SeccompCondition.html
+//! [`SeccompRule`]: struct.SeccompRule.html
+//! [`SeccompAction`]: struct.SeccompAction.html
+//!
 
 mod backend;
 
@@ -21,7 +108,7 @@ use std::io;
 // Re-export the IR public types.
 pub use backend::{
     sock_filter, BpfProgram, BpfProgramRef, Error as BackendError, SeccompAction, SeccompCmpArgLen,
-    SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule,
+    SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule, TargetArch,
 };
 
 // BPF structure definition for filter array.
@@ -65,6 +152,12 @@ impl Display for Error {
 }
 
 /// Apply a BPF filter to the calling thread.
+///
+///  # Arguments
+///
+/// * `bpf_filter` - A reference to the [`BpfProgram`] to be installed.
+///
+/// [`BpfProgram`]: struct.BpfProgram.html
 pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
     // If the program is empty, don't install the filter.
     if bpf_filter.is_empty() {

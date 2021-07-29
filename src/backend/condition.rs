@@ -27,6 +27,15 @@ impl SeccompCondition {
     /// * `operator` - Comparison operator to perform.
     /// * `value` - The value that will be compared with the argument value of the syscall.
     ///
+    /// # Example
+    ///
+    /// ```
+    /// use seccompiler::{SeccompCondition, SeccompCmpArgLen, SeccompCmpOp};
+    ///
+    /// let condition =
+    ///     SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap();
+    /// ```
+    ///
     /// [`SeccompCondition`]: struct.SeccompCondition.html
     pub fn new(
         arg_index: u8,

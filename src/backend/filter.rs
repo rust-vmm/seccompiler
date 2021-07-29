@@ -19,14 +19,63 @@ pub struct SeccompFilter {
 }
 
 impl SeccompFilter {
-    /// Creates a new filter with a set of rules and a default action.
+    /// Creates a new filter with a set of rules, an on-match and default action.
     ///
     /// # Arguments
     ///
-    /// * `rules` - Map containing syscall numbers and their respective rules.
-    /// * `default_action` - Action taken for all syscalls that do not match any rule.
-    /// * `filter_action` - Action taken system calls that match the filter.
+    /// * `rules` - Map containing syscall numbers and their respective [`SeccompRule`]s.
+    /// * `default_action` - [`SeccompAction`] taken for all syscalls that do not match any rule.
+    /// * `filter_action` - [`SeccompAction`] taken for system calls that match the filter.
     /// * `target_arch` - Target architecture of the generated BPF filter.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::convert::TryInto;
+    /// use seccompiler::{
+    ///     SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter,
+    ///     SeccompRule,
+    /// };
+    ///
+    /// let filter = SeccompFilter::new(
+    ///     vec![
+    ///         (libc::SYS_accept4, vec![]),
+    ///         (
+    ///             libc::SYS_fcntl,
+    ///             vec![
+    ///                 SeccompRule::new(vec![
+    ///                     SeccompCondition::new(
+    ///                         1,
+    ///                         SeccompCmpArgLen::Dword,
+    ///                         SeccompCmpOp::Eq,
+    ///                         libc::F_SETFD as u64,
+    ///                     ).unwrap(),
+    ///                     SeccompCondition::new(
+    ///                         2,
+    ///                         SeccompCmpArgLen::Dword,
+    ///                         SeccompCmpOp::Eq,
+    ///                         libc::FD_CLOEXEC as u64,
+    ///                     ).unwrap(),
+    ///                 ]).unwrap(),
+    ///                 SeccompRule::new(vec![SeccompCondition::new(
+    ///                     1,
+    ///                     SeccompCmpArgLen::Dword,
+    ///                     SeccompCmpOp::Eq,
+    ///                     libc::F_GETFD as u64,
+    ///                 ).unwrap()]).unwrap(),
+    ///             ],
+    ///         ),
+    ///     ]
+    ///     .into_iter()
+    ///     .collect(),
+    ///     SeccompAction::Trap,
+    ///     SeccompAction::Allow,
+    ///     std::env::consts::ARCH.try_into().unwrap(),
+    /// );
+    /// ```
+    ///
+    /// [`SeccompRule`]: struct.SeccompRule.html
+    /// [`SeccompAction`]: struct.SeccompAction.html
     pub fn new(
         rules: BTreeMap<i64, Vec<SeccompRule>>,
         default_action: SeccompAction,

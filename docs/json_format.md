@@ -36,7 +36,7 @@ pub enum SeccompAction {
     Errno(u32), // Returns from syscall with specified error number.
     KillThread, // Kills calling process.
     KillProcess, // Kills calling thread.
-    Log, // Same as allow but logs call.
+    Log, // Allows syscall after logging it.
     Trace(u32), // Notifies tracing process of the caller with respective number.
     Trap, // Sends `SIGSYS` to the calling process.
 }
