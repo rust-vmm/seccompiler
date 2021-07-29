@@ -6,9 +6,11 @@
 
 mod bpf;
 mod condition;
+mod filter;
 mod rule;
 
 pub use condition::SeccompCondition;
+pub use filter::SeccompFilter;
 pub use rule::SeccompRule;
 
 use core::fmt::Formatter;
@@ -16,10 +18,12 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 use bpf::{
-    ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO,
-    SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_MASK,
-    SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
+    ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN, SECCOMP_RET_ALLOW,
+    SECCOMP_RET_ERRNO, SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG,
+    SECCOMP_RET_MASK, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
+
+pub use bpf::{sock_filter, BpfProgram};
 
 /// Backend Result type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -29,6 +33,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Attempting to associate an empty vector of conditions to a rule.
     EmptyRule,
+    /// Filter exceeds the maximum number of instructions that a BPF program can have.
+    FilterTooLarge(usize),
+    /// Filter and default actions are equal.
+    IdenticalActions,
     /// Argument index of a `SeccompCondition` exceeds the maximum linux syscall index.
     InvalidArgumentNumber,
     /// Invalid TargetArch.
@@ -43,6 +51,12 @@ impl Display for Error {
             EmptyRule => {
                 write!(f, "The condition vector of a rule cannot be empty.")
             }
+            FilterTooLarge(len) => write!(
+                f,
+                "The seccomp filter contains too many BPF instructions: {}. Max length is {}.",
+                len, BPF_MAX_LEN
+            ),
+            IdenticalActions => write!(f, "`filter_action` and `default_action` are equal."),
             InvalidArgumentNumber => {
                 write!(
                     f,
