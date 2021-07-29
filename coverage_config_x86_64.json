@@ -1,5 +1,5 @@
 {
-    "coverage_score": 0,
-    "exclude_path": "",
+    "coverage_score": 87.3,
+    "exclude_path": "tests/integration_tests.rs",
     "crate_features": ""
 }
