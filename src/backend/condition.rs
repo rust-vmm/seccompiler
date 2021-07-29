@@ -245,7 +245,7 @@ impl SeccompCondition {
     /// * `offset` - The given jump offset to the start of the next rule.
     fn into_masked_eq_bpf(mut self, offset: u8, mask: u64) -> Vec<sock_filter> {
         // Mask the current value.
-        self.value = self.value & mask;
+        self.value &= mask;
 
         let (msb_offset, lsb_offset) = self.get_data_offsets();
         let (msb, lsb) = self.split_value();
