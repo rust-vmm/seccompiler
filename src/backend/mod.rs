@@ -23,7 +23,7 @@ use bpf::{
     SECCOMP_RET_MASK, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
 
-pub use bpf::{sock_filter, BpfProgram};
+pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
 
 /// Backend Result type.
 pub type Result<T> = std::result::Result<T, Error>;

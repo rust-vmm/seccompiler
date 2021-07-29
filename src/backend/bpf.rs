@@ -5,6 +5,9 @@ use super::TargetArch;
 /// Program made up of a sequence of BPF instructions.
 pub type BpfProgram = Vec<sock_filter>;
 
+/// Reference to program made up of a sequence of BPF instructions.
+pub type BpfProgramRef<'a> = &'a [sock_filter];
+
 // The maximum number of a syscall argument.
 // A syscall can have at most 6 arguments.
 // Arguments are numbered from 0 to 5.
