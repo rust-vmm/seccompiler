@@ -321,6 +321,11 @@ failures when running on machines that don't support the same vDSO system
 calls, if the said syscalls are used but not allowed. It is recommended to also
 test the seccomp filters on a machine that doesn't have vDSO, if possible.
 
+- For minimising system call overhead, it is recommended to enable the BPF Just
+in Time (JIT) compiler. After the BPF program is loaded, the kernel will
+translate the BPF code into native CPU instructions, for maximum efficieny.
+It can be configured via: `/proc/sys/net/core/bpf_jit_enable`.
+
 [1]: https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html
 [2]: https://man7.org/linux/man-pages/man2/prctl.2.html
 [3]: https://man7.org/linux/man-pages/man2/seccomp.2.html
