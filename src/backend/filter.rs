@@ -146,7 +146,7 @@ impl SeccompFilter {
             built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 1));
             built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 2));
             // If the chain is empty, we only need to append the on-match action.
-            built_syscall.push(BPF_STMT(BPF_RET | BPF_K, u32::from(filter_action.clone())));
+            built_syscall.push(BPF_STMT(BPF_RET | BPF_K, u32::from(filter_action)));
         } else {
             // The rules of the chain are appended.
             chain
@@ -182,11 +182,10 @@ impl TryFrom<SeccompFilter> for BpfProgram {
         }
 
         // The called syscall number is loaded.
-        let mut accumulator = Vec::with_capacity(1);
-        accumulator.push(vec![BPF_STMT(
+        let mut accumulator = vec![vec![BPF_STMT(
             BPF_LD | BPF_W | BPF_ABS,
             u32::from(SECCOMP_DATA_NR_OFFSET),
-        )]);
+        )]];
 
         let mut iter = filter.rules.into_iter();
 
