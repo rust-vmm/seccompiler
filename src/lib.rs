@@ -101,6 +101,7 @@
 //!
 
 mod backend;
+mod syscall_table;
 
 use std::fmt::{Display, Formatter};
 use std::io;

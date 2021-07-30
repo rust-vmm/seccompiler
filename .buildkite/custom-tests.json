@@ -1,0 +1,11 @@
+{
+    "tests": [
+        {
+            "test_name": "validate-syscall-tables",
+            "command": "tools/generate_syscall_tables.sh --test",
+            "platform": [
+                "x86_64"
+            ]
+        }
+    ]
+}
