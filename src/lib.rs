@@ -13,6 +13,19 @@
 //! Writing BPF programs by hand is difficult and error-prone. This crate provides high-level
 //! wrappers for working with system call filtering.
 //!
+//! The core concept of the library is the filter. It is an abstraction that
+//! models a collection of syscall-mapped rules, coupled with on-match and
+//! default actions, that logically describes a policy for dispatching actions
+//! (e.g. Allow, Trap, Errno) for incoming system calls.
+//!
+//! Seccompiler provides constructs for defining filters, compiling them into
+//! loadable BPF programs and installing them in the kernel.
+//!
+//! Filters are defined either with a JSON file or using Rust code, with
+//! library-defined structures. Both representations are semantically equivalent
+//! and model the rules of the filter. Choosing one or the other depends on the use
+//! case and preference.
+//!
 //! # Supported platforms
 //!
 //! Due to the fact that seccomp is a Linux-specific feature, this crate is
@@ -42,10 +55,10 @@
 //! system call matches. A system call may also map to an empty rule vector, which
 //! means that the system call will match, regardless of the actual arguments.
 //!
-//! # Example
+//! # Examples
 //!
-//! The following example defines and installs a simple filter, that sends SIGSYS for `accept4`,
-//! `fcntl(any, F_SETFD, FD_CLOEXEC, ..)` and `fcntl(any, F_GETFD, ...)`.
+//! The following example defines and installs a simple Rust filter, that sends SIGSYS for
+//! `accept4`, `fcntl(any, F_SETFD, FD_CLOEXEC, ..)` and `fcntl(any, F_GETFD, ...)`.
 //! It allows any other syscalls.
 //!
 //! ```
@@ -94,17 +107,81 @@
 //! seccompiler::apply_filter(&filter).unwrap();
 //! ```
 //!
+//!
+//! This second example defines and installs an equivalent JSON filter:
+//!
+//! ```
+//! use std::convert::TryInto;
+//! use seccompiler::BpfMap;
+//!
+//! let json_input = r#"{
+//!     "main_thread": {
+//!         "mismatch_action": "allow",
+//!         "match_action": "trap",
+//!         "filter": [
+//!             {
+//!                 "syscall": "accept4"
+//!             },
+//!             {
+//!                 "syscall": "fcntl",
+//!                 "args": [
+//!                     {
+//!                         "index": 1,
+//!                         "type": "dword",
+//!                         "op": "eq",
+//!                         "val": 2,
+//!                         "comment": "F_SETFD"
+//!                     },
+//!                     {
+//!                         "index": 2,
+//!                         "type": "dword",
+//!                         "op": "eq",
+//!                         "val": 1,
+//!                         "comment": "FD_CLOEXEC"
+//!                     }
+//!                 ]
+//!             },
+//!             {
+//!                 "syscall": "fcntl",
+//!                 "args": [
+//!                     {
+//!                         "index": 1,
+//!                         "type": "dword",
+//!                         "op": "eq",
+//!                         "val": 1,
+//!                         "comment": "F_GETFD"
+//!                     }
+//!                 ]
+//!             }
+//!         ]
+//!     }
+//! }"#;
+//!
+//! let filter_map: BpfMap = seccompiler::compile_from_json(
+//!     json_input.as_bytes(),
+//!     std::env::consts::ARCH.try_into().unwrap(),
+//! ).unwrap();
+//! let filter = filter_map.get("main_thread").unwrap();
+//!
+//! seccompiler::apply_filter(&filter).unwrap();
+//! ```
+//!
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`SeccompCondition`]: struct.SeccompCondition.html
 //! [`SeccompRule`]: struct.SeccompRule.html
-//! [`SeccompAction`]: struct.SeccompAction.html
+//! [`SeccompAction`]: enum.SeccompAction.html
 //!
 
 mod backend;
+mod frontend;
 mod syscall_table;
 
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
-use std::io;
+use std::io::{self, Read};
+
+use frontend::json::{Error as JsonFrontendError, JsonCompiler};
 
 // Re-export the IR public types.
 pub use backend::{
@@ -123,6 +200,9 @@ struct sock_fprog {
 /// Library Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+///`BpfMap` is another type exposed by the library, which maps thread categories to BPF programs.
+pub type BpfMap = HashMap<String, BpfProgram>;
+
 /// Library errors.
 #[derive(Debug)]
 pub enum Error {
@@ -132,6 +212,8 @@ pub enum Error {
     EmptyFilter,
     /// System error related to calling `prctl`.
     Prctl(io::Error),
+    /// Json Frontend Error.
+    JsonFrontend(JsonFrontendError),
 }
 
 impl Display for Error {
@@ -148,17 +230,20 @@ impl Display for Error {
             Prctl(errno) => {
                 write!(f, "Error calling `prctl`: {}", errno)
             }
+            JsonFrontend(error) => {
+                write!(f, "Json Frontend error: {}", error)
+            }
         }
     }
 }
 
 /// Apply a BPF filter to the calling thread.
 ///
-///  # Arguments
+/// # Arguments
 ///
 /// * `bpf_filter` - A reference to the [`BpfProgram`] to be installed.
 ///
-/// [`BpfProgram`]: struct.BpfProgram.html
+/// [`BpfProgram`]: type.BpfProgram.html
 pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
     // If the program is empty, don't install the filter.
     if bpf_filter.is_empty() {
@@ -191,4 +276,28 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Compile [`BpfProgram`]s from JSON.
+///
+/// # Arguments
+///
+/// * `reader` - [`std::io::Read`] object containing the JSON data conforming to the
+///    [JSON file format](https://github.com/rust-vmm/seccompiler/blob/master/docs/json_format.md).
+/// * `arch` - target architecture of the filter.
+///
+/// [`BpfProgram`]: type.BpfProgram.html
+pub fn compile_from_json<R: Read>(reader: R, arch: TargetArch) -> Result<BpfMap> {
+    // Run the frontend.
+    let seccomp_filters: HashMap<String, SeccompFilter> = JsonCompiler::new(arch)
+        .compile(reader)
+        .map_err(Error::JsonFrontend)?;
+
+    // Run the backend.
+    let mut bpf_data: BpfMap = BpfMap::with_capacity(seccomp_filters.len());
+    for (name, seccomp_filter) in seccomp_filters {
+        bpf_data.insert(name, seccomp_filter.try_into().map_err(Error::Backend)?);
+    }
+
+    Ok(bpf_data)
 }
