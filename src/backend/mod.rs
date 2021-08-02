@@ -14,6 +14,7 @@ pub use filter::SeccompFilter;
 pub use rule::SeccompRule;
 
 use core::fmt::Formatter;
+use serde::Deserialize;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
@@ -26,7 +27,7 @@ use bpf::{
 pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
 
 /// Backend Result type.
-pub type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, Error>;
 
 /// Backend-related errors.
 #[derive(Debug, PartialEq)]
@@ -101,7 +102,8 @@ impl TryFrom<&str> for TargetArch {
 }
 
 /// Comparison to perform when matching a condition.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SeccompCmpOp {
     /// Argument value is equal to the specified value.
     Eq,
@@ -120,7 +122,8 @@ pub enum SeccompCmpOp {
 }
 
 /// Seccomp argument value length.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SeccompCmpArgLen {
     /// Argument value length is 4 bytes.
     Dword,
@@ -129,7 +132,8 @@ pub enum SeccompCmpArgLen {
 }
 
 /// Actions that a seccomp filter can return for a syscall.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SeccompAction {
     /// Allows syscall.
     Allow,
@@ -154,7 +158,7 @@ impl From<SeccompAction> for u32 {
     ///
     /// * `action` - The [`SeccompAction`] that the kernel will take.
     ///
-    /// [`SeccompAction`]: struct.SeccompAction.html
+    /// [`SeccompAction`]: enum.SeccompAction.html
     fn from(action: SeccompAction) -> Self {
         match action {
             SeccompAction::Allow => SECCOMP_RET_ALLOW,
