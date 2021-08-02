@@ -78,7 +78,7 @@ impl SeccompFilter {
     /// ```
     ///
     /// [`SeccompRule`]: struct.SeccompRule.html
-    /// [`SeccompAction`]: struct.SeccompAction.html
+    /// [`SeccompAction`]: enum.SeccompAction.html
     pub fn new(
         rules: BTreeMap<i64, Vec<SeccompRule>>,
         mismatch_action: SeccompAction,
