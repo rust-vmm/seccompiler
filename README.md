@@ -256,7 +256,7 @@ let filters: BpfMap = seccompiler::compile_from_json(
 categories to BPF programs.
 
 ```rust
-pub type BpfMap = HashMap<String, Arc<BpfProgram>>;
+pub type BpfMap = HashMap<String, BpfProgram>;
 ```
 
 For **Rust filters**, it’s enough to perform a `try_into()` cast, from a
@@ -284,8 +284,6 @@ seccompiler::apply_filter(&bpf_prog)?;
 It’s interesting to note that installing the filter does not take ownership or
 invalidate the BPF program, thanks to the kernel which performs a
 `copy_from_user` on the program before installing it.
-This is why `BpfMap` entries map to `Arc<BpfProgram>`, so that they can
-be shared across threads of the same category, avoiding copies.
 
 ## Seccomp best practices
 
