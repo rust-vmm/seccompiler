@@ -259,6 +259,9 @@ categories to BPF programs.
 pub type BpfMap = HashMap<String, BpfProgram>;
 ```
 
+Note that, in order to use the JSON functionality, you need to add the `json`
+feature when importing the library.
+
 For **Rust filters**, it’s enough to perform a `try_into()` cast, from a
 `SeccompFilter` to a `BpfProgram`:
 

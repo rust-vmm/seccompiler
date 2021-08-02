@@ -1,3 +1,5 @@
+#![cfg(feature = "json")]
+
 use seccompiler::{apply_filter, compile_from_json, BpfProgram};
 use std::convert::TryInto;
 use std::env::consts::ARCH;
