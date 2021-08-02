@@ -99,8 +99,13 @@ fn test_empty_filter() {
 
     // This should allow any system calls.
     let pid = thread::spawn(move || {
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 0);
         // Install the filter.
         apply_filter(&prog).unwrap();
+
+        let seccomp_level = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
+        assert_eq!(seccomp_level, 2);
 
         unsafe { libc::getpid() }
     })
