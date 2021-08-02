@@ -9,7 +9,10 @@ keywords = ["seccomp", "jail", "sandbox"]
 license = "Apache-2.0 OR BSD-3-Clause"
 edition = "2018"
 
+[features]
+json = ["serde", "serde_json"]
+
 [dependencies]
 libc = ">=0.2.39"
-serde = { version = ">=1.0.27", features = ["derive"] }
-serde_json = ">=1.0.9"
+serde = { version = ">=1.0.27", features = ["derive"], optional = true}
+serde_json = {version = ">=1.0.9", optional = true}

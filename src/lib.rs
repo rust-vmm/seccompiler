@@ -108,11 +108,13 @@
 //! ```
 //!
 //!
-//! This second example defines and installs an equivalent JSON filter:
+//! This second example defines and installs an equivalent JSON filter (uses the `json` feature):
 //!
 //! ```
-//! use std::convert::TryInto;
+//! # #[cfg(feature = "json")]
+//! # {
 //! use seccompiler::BpfMap;
+//! use std::convert::TryInto;
 //!
 //! let json_input = r#"{
 //!     "main_thread": {
@@ -164,6 +166,8 @@
 //! let filter = filter_map.get("main_thread").unwrap();
 //!
 //! seccompiler::apply_filter(&filter).unwrap();
+//!
+//! # }
 //! ```
 //!
 //! [`SeccompFilter`]: struct.SeccompFilter.html
@@ -173,14 +177,21 @@
 //!
 
 mod backend;
+#[cfg(feature = "json")]
 mod frontend;
+#[cfg(feature = "json")]
 mod syscall_table;
 
-use std::collections::HashMap;
+#[cfg(feature = "json")]
 use std::convert::TryInto;
-use std::fmt::{Display, Formatter};
-use std::io::{self, Read};
+#[cfg(feature = "json")]
+use std::io::Read;
 
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::io;
+
+#[cfg(feature = "json")]
 use frontend::json::{Error as JsonFrontendError, JsonCompiler};
 
 // Re-export the IR public types.
@@ -213,6 +224,7 @@ pub enum Error {
     /// System error related to calling `prctl`.
     Prctl(io::Error),
     /// Json Frontend Error.
+    #[cfg(feature = "json")]
     JsonFrontend(JsonFrontendError),
 }
 
@@ -230,6 +242,7 @@ impl Display for Error {
             Prctl(errno) => {
                 write!(f, "Error calling `prctl`: {}", errno)
             }
+            #[cfg(feature = "json")]
             JsonFrontend(error) => {
                 write!(f, "Json Frontend error: {}", error)
             }
@@ -287,6 +300,7 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
 /// * `arch` - target architecture of the filter.
 ///
 /// [`BpfProgram`]: type.BpfProgram.html
+#[cfg(feature = "json")]
 pub fn compile_from_json<R: Read>(reader: R, arch: TargetArch) -> Result<BpfMap> {
     // Run the frontend.
     let seccomp_filters: HashMap<String, SeccompFilter> = JsonCompiler::new(arch)

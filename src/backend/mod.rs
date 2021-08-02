@@ -13,8 +13,10 @@ pub use condition::SeccompCondition;
 pub use filter::SeccompFilter;
 pub use rule::SeccompRule;
 
-use core::fmt::Formatter;
+#[cfg(feature = "json")]
 use serde::Deserialize;
+
+use core::fmt::Formatter;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
@@ -102,8 +104,12 @@ impl TryFrom<&str> for TargetArch {
 }
 
 /// Comparison to perform when matching a condition.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "json",
+    derive(Deserialize),
+    serde(rename_all = "snake_case")
+)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SeccompCmpOp {
     /// Argument value is equal to the specified value.
     Eq,
@@ -122,8 +128,8 @@ pub enum SeccompCmpOp {
 }
 
 /// Seccomp argument value length.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "json", derive(Deserialize), serde(rename_all = "lowercase"))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SeccompCmpArgLen {
     /// Argument value length is 4 bytes.
     Dword,
@@ -132,8 +138,12 @@ pub enum SeccompCmpArgLen {
 }
 
 /// Actions that a seccomp filter can return for a syscall.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "json",
+    derive(Deserialize),
+    serde(rename_all = "snake_case")
+)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SeccompAction {
     /// Allows syscall.
     Allow,
