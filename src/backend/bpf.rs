@@ -47,9 +47,8 @@ pub const SECCOMP_DATA_ARG_SIZE: u8 = 8;
 // * `jt` - The jump offset in case the operation returns `true`.
 // * `jf` - The jump offset in case the operation returns `false`.
 // * `k` - The operand.
-#[allow(non_snake_case)]
 #[inline(always)]
-pub(crate) fn BPF_JUMP(code: u16, k: u32, jt: u8, jf: u8) -> sock_filter {
+pub(crate) fn bpf_jump(code: u16, k: u32, jt: u8, jf: u8) -> sock_filter {
     sock_filter { code, jt, jf, k }
 }
 
@@ -59,9 +58,8 @@ pub(crate) fn BPF_JUMP(code: u16, k: u32, jt: u8, jf: u8) -> sock_filter {
 //
 // * `code` - The operation code.
 // * `k` - The operand.
-#[allow(non_snake_case)]
 #[inline(always)]
-pub(crate) fn BPF_STMT(code: u16, k: u32) -> sock_filter {
+pub(crate) fn bpf_stmt(code: u16, k: u32) -> sock_filter {
     sock_filter {
         code,
         jt: 0,
@@ -75,9 +73,9 @@ pub(crate) fn BPF_STMT(code: u16, k: u32) -> sock_filter {
 pub(crate) fn build_arch_validation_sequence(target_arch: TargetArch) -> Vec<sock_filter> {
     let audit_arch_value = target_arch.get_audit_value();
     vec![
-        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, SECCOMP_DATA_ARCH_OFFSET as u32),
-        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, audit_arch_value, 1, 0),
-        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+        bpf_stmt(BPF_LD | BPF_W | BPF_ABS, SECCOMP_DATA_ARCH_OFFSET as u32),
+        bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, audit_arch_value, 1, 0),
+        bpf_stmt(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
     ]
 }
 
@@ -162,7 +160,7 @@ mod tests {
         // Compares the output of the BPF instruction generating functions to hardcoded
         // instructions.
         assert_eq!(
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16),
             sock_filter {
                 code: 0x20,
                 jt: 0,
@@ -171,7 +169,7 @@ mod tests {
             }
         );
         assert_eq!(
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 10, 2, 5),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 2, 5),
             sock_filter {
                 code: 0x15,
                 jt: 2,
