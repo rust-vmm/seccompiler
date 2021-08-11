@@ -84,9 +84,9 @@ impl SeccompRule {
             //   next syscall number to be checked or the default action of the filter in the
             //   case of the last rule chain.
             let helper_jumps = vec![
-                BPF_STMT(BPF_JMP | BPF_JA, 2),
-                BPF_STMT(BPF_JMP | BPF_JA, u32::from(*offset) + 1),
-                BPF_STMT(BPF_JMP | BPF_JA, u32::from(*offset) + 1),
+                bpf_stmt(BPF_JMP | BPF_JA, 2),
+                bpf_stmt(BPF_JMP | BPF_JA, u32::from(*offset) + 1),
+                bpf_stmt(BPF_JMP | BPF_JA, u32::from(*offset) + 1),
             ];
             accumulator.push(helper_jumps);
             *offset = 1;
@@ -126,8 +126,8 @@ impl From<SeccompRule> for BpfProgram {
 
         // The two initial jump statements are prepended to the rule.
         accumulator.push(vec![
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, u32::from(offset) + 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, u32::from(offset) + 1),
         ]);
 
         // Finally, builds the translated rule by reversing and consuming the accumulator.
@@ -167,16 +167,16 @@ mod tests {
 
         // Builds hardcoded BPF instructions.
         let instructions = vec![
-            BPF_STMT(BPF_JMP | BPF_JA, 1),  // Start evaluating the rule.
-            BPF_STMT(BPF_JMP | BPF_JA, 10), // Jump to the next rule.
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 6),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0b1010),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 14 & 0b1010, 0, 3),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),  // Start evaluating the rule.
+            bpf_stmt(BPF_JMP | BPF_JA, 10), // Jump to the next rule.
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 6),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0b1010),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 14 & 0b1010, 0, 3),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
         ];
         // In a filter, these instructions would follow:
         // RET match_action
@@ -205,27 +205,27 @@ mod tests {
 
         // Builds hardcoded BPF instructions.
         let mut instructions = vec![
-            BPF_STMT(BPF_JMP | BPF_JA, 1), // Start evaluating the rule.
-            BPF_STMT(BPF_JMP | BPF_JA, 6), // Jump to the next rule. Actually to a helper jump.
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16 + msb_offset),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 2),
-            BPF_STMT(BPF_JMP | BPF_JA, 254),
-            BPF_STMT(BPF_JMP | BPF_JA, 254),
+            bpf_stmt(BPF_JMP | BPF_JA, 1), // Start evaluating the rule.
+            bpf_stmt(BPF_JMP | BPF_JA, 6), // Jump to the next rule. Actually to a helper jump.
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16 + msb_offset),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 2),
+            bpf_stmt(BPF_JMP | BPF_JA, 254),
+            bpf_stmt(BPF_JMP | BPF_JA, 254),
         ];
         let mut offset = 253;
         for _ in 0..42 {
             offset -= 6;
             // Add the rest of the `MaskedEq` conditions.
             instructions.append(&mut vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16 + msb_offset),
-                BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, offset + 3),
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
-                BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, offset),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16 + msb_offset),
+                bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, offset + 3),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 16 + lsb_offset),
+                bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, offset),
             ]);
         }
 

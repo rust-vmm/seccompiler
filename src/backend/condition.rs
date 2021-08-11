@@ -99,14 +99,14 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, lsb, 0, offset),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, lsb, 0, offset),
         ]);
         bpf
     }
@@ -123,14 +123,14 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, lsb, offset, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, lsb, offset, 0),
         ]);
         bpf
     }
@@ -147,15 +147,15 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, msb, 3, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JGT | BPF_K, msb, 3, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, lsb, 0, offset),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, lsb, 0, offset),
         ]);
         bpf
     }
@@ -172,15 +172,15 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, msb, 3, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JGT | BPF_K, msb, 3, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, lsb, 0, offset),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, lsb, 0, offset),
         ]);
         bpf
     }
@@ -197,15 +197,15 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, msb, offset + 3, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JGT | BPF_K, msb, offset + 3, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, lsb, offset, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, lsb, offset, 0),
         ]);
         bpf
     }
@@ -222,15 +222,15 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, msb, offset + 3, 0),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_jump(BPF_JMP | BPF_JGT | BPF_K, msb, offset + 3, 0),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, 2),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, lsb, offset, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, lsb, offset, 0),
         ]);
         bpf
     }
@@ -254,16 +254,16 @@ impl SeccompCondition {
         let mut bpf = match self.arg_len {
             SeccompCmpArgLen::Dword => vec![],
             SeccompCmpArgLen::Qword => vec![
-                BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
-                BPF_STMT(BPF_ALU | BPF_AND | BPF_K, mask_msb),
-                BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 3),
+                bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(msb_offset)),
+                bpf_stmt(BPF_ALU | BPF_AND | BPF_K, mask_msb),
+                bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, msb, 0, offset + 3),
             ],
         };
 
         bpf.append(&mut vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, mask_lsb),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, lsb, 0, offset),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, u32::from(lsb_offset)),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, mask_lsb),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, lsb, 0, offset),
         ]);
         bpf
     }

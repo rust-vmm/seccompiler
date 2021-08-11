@@ -128,7 +128,7 @@ impl SeccompFilter {
             .map(|rule| {
                 let mut bpf: BpfProgram = rule.into();
                 // Last statement is the on-match action of the filter.
-                bpf.push(BPF_STMT(BPF_RET | BPF_K, u32::from(match_action.clone())));
+                bpf.push(bpf_stmt(BPF_RET | BPF_K, u32::from(match_action.clone())));
                 bpf
             })
             .collect();
@@ -137,7 +137,7 @@ impl SeccompFilter {
         // The chain starts with a comparison checking the loaded syscall number against the
         // syscall number of the chain.
         let mut built_syscall = Vec::with_capacity(chain_len + 2);
-        built_syscall.push(BPF_JUMP(
+        built_syscall.push(bpf_jump(
             BPF_JMP | BPF_JEQ | BPF_K,
             // Safe because linux system call numbers are nowhere near the u32::MAX value.
             syscall_number.try_into().unwrap(),
@@ -146,10 +146,10 @@ impl SeccompFilter {
         ));
 
         if chain.is_empty() {
-            built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 1));
-            built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 2));
+            built_syscall.push(bpf_stmt(BPF_JMP | BPF_JA, 1));
+            built_syscall.push(bpf_stmt(BPF_JMP | BPF_JA, 2));
             // If the chain is empty, we only need to append the on-match action.
-            built_syscall.push(BPF_STMT(BPF_RET | BPF_K, u32::from(match_action)));
+            built_syscall.push(bpf_stmt(BPF_RET | BPF_K, u32::from(match_action)));
         } else {
             // The rules of the chain are appended.
             chain
@@ -159,7 +159,7 @@ impl SeccompFilter {
 
         // The default action is appended, if the syscall number comparison matched and then all
         // rules fail to match, the default action is reached.
-        built_syscall.push(BPF_STMT(BPF_RET | BPF_K, mismatch_action.into()));
+        built_syscall.push(bpf_stmt(BPF_RET | BPF_K, mismatch_action.into()));
 
         accumulator.push(built_syscall);
 
@@ -176,7 +176,7 @@ impl TryFrom<SeccompFilter> for BpfProgram {
         // If no rules are set up, the filter will always return the default action,
         // so let's short-circuit the function.
         if filter.rules.is_empty() {
-            result.extend(vec![BPF_STMT(
+            result.extend(vec![bpf_stmt(
                 BPF_RET | BPF_K,
                 u32::from(filter.mismatch_action),
             )]);
@@ -185,7 +185,7 @@ impl TryFrom<SeccompFilter> for BpfProgram {
         }
 
         // The called syscall number is loaded.
-        let mut accumulator = vec![vec![BPF_STMT(
+        let mut accumulator = vec![vec![bpf_stmt(
             BPF_LD | BPF_W | BPF_ABS,
             u32::from(SECCOMP_DATA_NR_OFFSET),
         )]];
@@ -208,7 +208,7 @@ impl TryFrom<SeccompFilter> for BpfProgram {
 
         // The default action is once again appended, it is reached if all syscall number
         // comparisons fail.
-        accumulator.push(vec![BPF_STMT(BPF_RET | BPF_K, mismatch_action.into())]);
+        accumulator.push(vec![bpf_stmt(BPF_RET | BPF_K, mismatch_action.into())]);
 
         // Finally, builds the translated filter by consuming the accumulator.
         accumulator
@@ -324,7 +324,7 @@ mod tests {
         // An empty filter should just validate the architecture and return the mismatch_action.
         let mut expected_program = Vec::new();
         expected_program.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
-        expected_program.extend(vec![BPF_STMT(BPF_RET, 0x7fff_0000)]);
+        expected_program.extend(vec![bpf_stmt(BPF_RET, 0x7fff_0000)]);
 
         let filter = SeccompFilter::new(
             BTreeMap::new(),
@@ -346,42 +346,42 @@ mod tests {
         let mut instructions = Vec::new();
         instructions.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
         instructions.extend(vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 6),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 10, 3, 0),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 6),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 30, 3, 0),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 4),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 5),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 24),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0b100),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 10, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 2),
-            BPF_STMT(BPF_RET | BPF_K, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 6),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 3, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 6),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 30, 3, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 4),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 5),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0b100),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 2),
+            bpf_stmt(BPF_RET | BPF_K, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
         ]);
 
         let bpfprog: BpfProgram = filter.try_into().unwrap();
@@ -396,59 +396,59 @@ mod tests {
         let mut instructions = Vec::new();
         instructions.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
         instructions.extend(vec![
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 11),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 36),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 10, 6, 0),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 36),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 0, 4, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 12),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 36),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 0, 9, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 30, 6, 0),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 36),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 7),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 36),
-            BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 32),
-            BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 8),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 28),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 4),
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, 24),
-            BPF_STMT(BPF_ALU | BPF_AND | BPF_K, 0b100),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
-            BPF_STMT(BPF_RET, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 10, 0, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 1),
-            BPF_STMT(BPF_JMP | BPF_JA, 2),
-            BPF_STMT(BPF_RET | BPF_K, 0x7fff_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
-            BPF_STMT(BPF_RET, 0x0003_0000),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 11),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 6, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 4, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 12),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 9, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 30, 6, 0),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 7),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 8),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 28),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 4),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24),
+            bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0b100),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
+            bpf_stmt(BPF_RET, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 0, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 1),
+            bpf_stmt(BPF_JMP | BPF_JA, 2),
+            bpf_stmt(BPF_RET | BPF_K, 0x7fff_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
+            bpf_stmt(BPF_RET, 0x0003_0000),
         ]);
 
         let bpfprog: BpfProgram = filter.try_into().unwrap();
