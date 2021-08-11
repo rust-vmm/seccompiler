@@ -56,7 +56,7 @@ impl Display for Error {
                 "The seccomp filter contains too many BPF instructions: {}. Max length is {}.",
                 len, BPF_MAX_LEN
             ),
-            IdenticalActions => write!(f, "`filter_action` and `default_action` are equal."),
+            IdenticalActions => write!(f, "`match_action` and `mismatch_action` are equal."),
             InvalidArgumentNumber => {
                 write!(
                     f,

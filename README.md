@@ -127,8 +127,8 @@ the diagram above:
 ```json
 {
     "main_thread": {
-        "default_action": "kill_process",
-        "filter_action": "allow",
+        "mismatch_action": "kill_process",
+        "match_action": "allow",
         "filter": [
             {
                 "syscall": "accept4"
@@ -207,9 +207,9 @@ SeccompFilter::new(
             ]
         )
     ].into_iter().collect(),
-    // default_action
+    // mismatch_action
     SeccompAction::KillProcess,
-    // filter_action
+    // match_action
     SeccompAction::Allow,
     // target architecture of filter
     TargetArch::x86_64,

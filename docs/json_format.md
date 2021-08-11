@@ -10,10 +10,10 @@ seccomp filters:
 ```
 {
     "vmm": {
-       "default_action": {
+       "mismatch_action": {
             "errno" : -1
        },
-       "filter_action": "allow",
+       "match_action": "allow",
        "filter": [...]
     },
     "api": {...},
@@ -21,11 +21,11 @@ seccomp filters:
 }
 ```
 
-The associated filter is a JSON object containing the `default_action`,
-`filter_action` and `filter` properties.
+The associated filter is a JSON object containing the `mismatch_action`,
+`match_action` and `filter` properties.
 
-The `default_action` represents the action executed if none of the rules in
-`filter` match, and `filter_action` is what gets executed if a rule in the
+The `mismatch_action` represents the action executed if none of the rules in
+`filter` match, and `match_action` is what gets executed if a rule in the
 filter matches (e.g: `"Allow"` in the case of implementing an allowlist).
 
 An **action** is the JSON representation of the following enum:
