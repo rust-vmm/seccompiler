@@ -7,7 +7,7 @@ use std::convert::{From, TryFrom};
 /// Rule that a filter attempts to match for a syscall.
 ///
 /// If all conditions match then rule gets matched.
-/// A syscall can have many rules associated. If either of them matches, the `filter_action` of the
+/// A syscall can have many rules associated. If either of them matches, the `match_action` of the
 /// [`SeccompFilter`] is triggered.
 ///
 /// [`SeccompFilter`]: struct.SeccompFilter.html
@@ -179,9 +179,9 @@ mod tests {
             BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
         ];
         // In a filter, these instructions would follow:
-        // RET filter_action
+        // RET match_action
         // OTHER RULES...
-        // RET default_action. (if the syscall number matched and then all rules fail to match)
+        // RET mismatch_action. (if the syscall number matched and then all rules fail to match)
         // RET default action. (if no syscall number matched)
 
         // Compares translated rule with hardcoded BPF instructions.

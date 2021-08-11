@@ -14,9 +14,9 @@ pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
     rules: BTreeMap<i64, Vec<SeccompRule>>,
     /// Default action to apply to syscalls that do not match the filter.
-    default_action: SeccompAction,
+    mismatch_action: SeccompAction,
     /// Filter action to apply to syscalls that match the filter.
-    filter_action: SeccompAction,
+    match_action: SeccompAction,
     /// Target architecture of the generated BPF filter.
     target_arch: TargetArch,
 }
@@ -27,8 +27,8 @@ impl SeccompFilter {
     /// # Arguments
     ///
     /// * `rules` - Map containing syscall numbers and their respective [`SeccompRule`]s.
-    /// * `default_action` - [`SeccompAction`] taken for all syscalls that do not match any rule.
-    /// * `filter_action` - [`SeccompAction`] taken for system calls that match the filter.
+    /// * `mismatch_action` - [`SeccompAction`] taken for all syscalls that do not match any rule.
+    /// * `match_action` - [`SeccompAction`] taken for system calls that match the filter.
     /// * `target_arch` - Target architecture of the generated BPF filter.
     ///
     /// # Example
@@ -81,14 +81,14 @@ impl SeccompFilter {
     /// [`SeccompAction`]: struct.SeccompAction.html
     pub fn new(
         rules: BTreeMap<i64, Vec<SeccompRule>>,
-        default_action: SeccompAction,
-        filter_action: SeccompAction,
+        mismatch_action: SeccompAction,
+        match_action: SeccompAction,
         target_arch: TargetArch,
     ) -> Result<Self> {
         let instance = Self {
             rules,
-            default_action,
-            filter_action,
+            mismatch_action,
+            match_action,
             target_arch,
         };
 
@@ -100,7 +100,7 @@ impl SeccompFilter {
     /// Performs semantic checks on the SeccompFilter.
     fn validate(&self) -> Result<()> {
         // Doesn't make sense to have equal default and on-match actions.
-        if self.default_action == self.filter_action {
+        if self.mismatch_action == self.match_action {
             return Err(Error::IdenticalActions);
         }
 
@@ -113,13 +113,13 @@ impl SeccompFilter {
     ///
     /// * `syscall_number` - The syscall to which the rules apply.
     /// * `chain` - The chain of rules for the specified syscall.
-    /// * `default_action` - The action to be taken in none of the rules apply.
+    /// * `mismatch_action` - The action to be taken in none of the rules apply.
     /// * `accumulator` - The expanding BPF program.
     fn append_syscall_chain(
         syscall_number: i64,
         chain: Vec<SeccompRule>,
-        default_action: SeccompAction,
-        filter_action: SeccompAction,
+        mismatch_action: SeccompAction,
+        match_action: SeccompAction,
         accumulator: &mut Vec<Vec<sock_filter>>,
     ) -> Result<()> {
         // The rules of the chain are translated into BPF statements.
@@ -128,7 +128,7 @@ impl SeccompFilter {
             .map(|rule| {
                 let mut bpf: BpfProgram = rule.into();
                 // Last statement is the on-match action of the filter.
-                bpf.push(BPF_STMT(BPF_RET | BPF_K, u32::from(filter_action.clone())));
+                bpf.push(BPF_STMT(BPF_RET | BPF_K, u32::from(match_action.clone())));
                 bpf
             })
             .collect();
@@ -149,7 +149,7 @@ impl SeccompFilter {
             built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 1));
             built_syscall.push(BPF_STMT(BPF_JMP | BPF_JA, 2));
             // If the chain is empty, we only need to append the on-match action.
-            built_syscall.push(BPF_STMT(BPF_RET | BPF_K, u32::from(filter_action)));
+            built_syscall.push(BPF_STMT(BPF_RET | BPF_K, u32::from(match_action)));
         } else {
             // The rules of the chain are appended.
             chain
@@ -159,7 +159,7 @@ impl SeccompFilter {
 
         // The default action is appended, if the syscall number comparison matched and then all
         // rules fail to match, the default action is reached.
-        built_syscall.push(BPF_STMT(BPF_RET | BPF_K, default_action.into()));
+        built_syscall.push(BPF_STMT(BPF_RET | BPF_K, mismatch_action.into()));
 
         accumulator.push(built_syscall);
 
@@ -178,7 +178,7 @@ impl TryFrom<SeccompFilter> for BpfProgram {
         if filter.rules.is_empty() {
             result.extend(vec![BPF_STMT(
                 BPF_RET | BPF_K,
-                u32::from(filter.default_action),
+                u32::from(filter.mismatch_action),
             )]);
 
             return Ok(result);
@@ -193,22 +193,22 @@ impl TryFrom<SeccompFilter> for BpfProgram {
         let mut iter = filter.rules.into_iter();
 
         // For each syscall adds its rule chain to the filter.
-        let default_action = filter.default_action;
-        let filter_action = filter.filter_action;
+        let mismatch_action = filter.mismatch_action;
+        let match_action = filter.match_action;
 
         iter.try_for_each(|(syscall_number, chain)| {
             SeccompFilter::append_syscall_chain(
                 syscall_number,
                 chain,
-                default_action.clone(),
-                filter_action.clone(),
+                mismatch_action.clone(),
+                match_action.clone(),
                 &mut accumulator,
             )
         })?;
 
         // The default action is once again appended, it is reached if all syscall number
         // comparisons fail.
-        accumulator.push(vec![BPF_STMT(BPF_RET | BPF_K, default_action.into())]);
+        accumulator.push(vec![BPF_STMT(BPF_RET | BPF_K, mismatch_action.into())]);
 
         // Finally, builds the translated filter by consuming the accumulator.
         accumulator
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_empty_filter_output() {
-        // An empty filter should just validate the architecture and return the default_action.
+        // An empty filter should just validate the architecture and return the mismatch_action.
         let mut expected_program = Vec::new();
         expected_program.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
         expected_program.extend(vec![BPF_STMT(BPF_RET, 0x7fff_0000)]);
