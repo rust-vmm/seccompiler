@@ -230,17 +230,16 @@ fn test_ge_operator() {
     // check use case for QWORD
     let rules = vec![(
         libc::SYS_ioctl,
-        vec![SeccompRule::new(vec![
-            Cond::new(2, Qword, Ge, u64::from(std::u32::MAX)).unwrap()
-        ])
-        .unwrap()],
+        vec![
+            SeccompRule::new(vec![Cond::new(2, Qword, Ge, u64::from(u32::MAX)).unwrap()]).unwrap(),
+        ],
     )];
     // check syscalls that are supposed to work
     validate_seccomp_filter(
         rules.clone(),
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX));
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 1);
+            libc::ioctl(0, 0, u64::from(u32::MAX));
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 1);
         },
         Some(false),
     );
@@ -282,7 +281,7 @@ fn test_gt_operator() {
     let rules = vec![(
         libc::SYS_ioctl,
         vec![SeccompRule::new(vec![
-            Cond::new(2, Qword, Gt, u64::from(std::u32::MAX) + 10).unwrap()
+            Cond::new(2, Qword, Gt, u64::from(u32::MAX) + 10).unwrap()
         ])
         .unwrap()],
     )];
@@ -290,7 +289,7 @@ fn test_gt_operator() {
     validate_seccomp_filter(
         rules.clone(),
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 11);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 11);
         },
         Some(false),
     );
@@ -298,7 +297,7 @@ fn test_gt_operator() {
     validate_seccomp_filter(
         rules,
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 10);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
         },
         Some(true),
     );
@@ -333,7 +332,7 @@ fn test_le_operator() {
     let rules = vec![(
         libc::SYS_ioctl,
         vec![SeccompRule::new(vec![
-            Cond::new(2, Qword, Le, u64::from(std::u32::MAX) + 10).unwrap()
+            Cond::new(2, Qword, Le, u64::from(u32::MAX) + 10).unwrap()
         ])
         .unwrap()],
     )];
@@ -341,8 +340,8 @@ fn test_le_operator() {
     validate_seccomp_filter(
         rules.clone(),
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 10);
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 9);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 9);
         },
         Some(false),
     );
@@ -350,7 +349,7 @@ fn test_le_operator() {
     validate_seccomp_filter(
         rules,
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 11);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 11);
         },
         Some(true),
     );
@@ -384,7 +383,7 @@ fn test_lt_operator() {
     let rules = vec![(
         libc::SYS_ioctl,
         vec![SeccompRule::new(vec![
-            Cond::new(2, Qword, Lt, u64::from(std::u32::MAX) + 10).unwrap()
+            Cond::new(2, Qword, Lt, u64::from(u32::MAX) + 10).unwrap()
         ])
         .unwrap()],
     )];
@@ -392,7 +391,7 @@ fn test_lt_operator() {
     validate_seccomp_filter(
         rules.clone(),
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 9);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 9);
         },
         Some(false),
     );
@@ -400,7 +399,7 @@ fn test_lt_operator() {
     validate_seccomp_filter(
         rules,
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX) + 10);
+            libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
         },
         Some(true),
     );
@@ -444,7 +443,7 @@ fn test_masked_eq_operator() {
         vec![SeccompRule::new(vec![Cond::new(
             2,
             Qword,
-            MaskedEq(u64::from(std::u32::MAX)),
+            MaskedEq(u64::from(u32::MAX)),
             u64::MAX,
         )
         .unwrap()])
@@ -454,7 +453,7 @@ fn test_masked_eq_operator() {
     validate_seccomp_filter(
         rules.clone(),
         || unsafe {
-            libc::ioctl(0, 0, u64::from(std::u32::MAX));
+            libc::ioctl(0, 0, u64::from(u32::MAX));
             libc::ioctl(0, 0, u64::MAX);
         },
         Some(false),
@@ -537,10 +536,8 @@ fn test_complex_filter() {
                     Cond::new(2, Dword, Eq, 15).unwrap(),
                 ])
                 .unwrap(),
-                SeccompRule::new(vec![
-                    Cond::new(2, Qword, Eq, std::u32::MAX as u64 + 41).unwrap()
-                ])
-                .unwrap(),
+                SeccompRule::new(vec![Cond::new(2, Qword, Eq, u32::MAX as u64 + 41).unwrap()])
+                    .unwrap(),
             ],
         ),
         (
@@ -598,7 +595,7 @@ fn test_complex_filter() {
         validate_seccomp_filter(
             rules.clone(),
             || unsafe {
-                libc::ioctl(0, 0, std::u32::MAX as u64 + 41);
+                libc::ioctl(0, 0, u32::MAX as u64 + 41);
             },
             Some(false),
         );
@@ -673,7 +670,7 @@ fn test_complex_filter() {
         validate_seccomp_filter(
             rules.clone(),
             || unsafe {
-                libc::ioctl(0, 0, std::u32::MAX as u64 + 42);
+                libc::ioctl(0, 0, u32::MAX as u64 + 42);
             },
             Some(true),
         );

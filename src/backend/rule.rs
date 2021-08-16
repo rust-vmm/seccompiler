@@ -71,7 +71,7 @@ impl SeccompRule {
     ) {
         // Tries to detect whether prepending the current condition will produce an unjumpable
         // offset (since BPF conditional jumps are a maximum of 255 instructions, which is
-        // std::u8::MAX).
+        // u8::MAX).
         if offset.checked_add(CONDITION_MAX_LEN + 1).is_none() {
             // If that is the case, three additional helper jumps are prepended and the offset
             // is reset to 1.
