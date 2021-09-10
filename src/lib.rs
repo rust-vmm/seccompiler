@@ -228,6 +228,20 @@ pub enum Error {
     JsonFrontend(JsonFrontendError),
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use self::Error::*;
+
+        match self {
+            Backend(error) => Some(error),
+            Prctl(error) => Some(error),
+            #[cfg(feature = "json")]
+            JsonFrontend(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         use self::Error::*;

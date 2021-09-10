@@ -42,6 +42,18 @@ pub enum Error {
     SyscallName(String, TargetArch),
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use self::Error::*;
+
+        match self {
+            Backend(error) => Some(error),
+            SerdeJson(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Error::*;
