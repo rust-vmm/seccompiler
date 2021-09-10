@@ -46,6 +46,8 @@ pub enum Error {
     InvalidTargetArch(String),
 }
 
+impl std::error::Error for Error {}
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         use self::Error::*;
