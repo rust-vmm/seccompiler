@@ -682,7 +682,7 @@ fn test_complex_filter() {
         );
 
         validate_seccomp_filter(
-            rules.clone(),
+            rules,
             || unsafe {
                 assert_eq!(libc::getuid() as i32, -FAILURE_CODE);
             },
