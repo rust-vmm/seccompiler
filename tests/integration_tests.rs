@@ -34,11 +34,13 @@ const EXTRA_SYSCALLS: [i64; 6] = [
     libc::SYS_futex,
 ];
 
-fn validate_seccomp_filter(
-    rules: Vec<(i64, Vec<SeccompRule>)>,
-    validation_fn: fn(),
-    should_fail: Option<bool>,
-) {
+enum Errno {
+    Equals(i32),
+    NotEquals(i32),
+    None,
+}
+
+fn validate_seccomp_filter(rules: Vec<(i64, Vec<SeccompRule>)>, validation_fn: fn(), errno: Errno) {
     let mut rule_map: BTreeMap<i64, Vec<SeccompRule>> = rules.into_iter().collect();
 
     // Make sure the extra needed syscalls are allowed
@@ -59,7 +61,7 @@ fn validate_seccomp_filter(
 
     // We need to run the validation inside another thread in order to avoid setting
     // the seccomp filter for the entire unit tests process.
-    let errno = thread::spawn(move || {
+    let returned_errno = thread::spawn(move || {
         // Install the filter.
         apply_filter(&filter).unwrap();
 
@@ -72,14 +74,11 @@ fn validate_seccomp_filter(
     .join()
     .unwrap();
 
-    // In case of a seccomp denial `errno` should be `FAILURE_CODE`
-    if let Some(should_fail) = should_fail {
-        if should_fail {
-            assert_eq!(errno, FAILURE_CODE);
-        } else {
-            assert_ne!(errno, FAILURE_CODE);
-        }
-    }
+    match errno {
+        Errno::Equals(no) => assert_eq!(returned_errno, no),
+        Errno::NotEquals(no) => assert_ne!(returned_errno, no),
+        Errno::None => {}
+    };
 }
 
 #[test]
@@ -168,7 +167,7 @@ fn test_eq_operator() {
         || unsafe {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -176,7 +175,7 @@ fn test_eq_operator() {
         || unsafe {
             libc::ioctl(0, 0);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use cases for QWORD
@@ -190,7 +189,7 @@ fn test_eq_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::MAX);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -198,7 +197,7 @@ fn test_eq_operator() {
         || unsafe {
             libc::ioctl(0, 0, 0);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -216,7 +215,7 @@ fn test_ge_operator() {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
             libc::ioctl(0, (KVM_GET_PIT2 + 1) as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -224,7 +223,7 @@ fn test_ge_operator() {
         || unsafe {
             libc::ioctl(0, (KVM_GET_PIT2 - 1) as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -241,7 +240,7 @@ fn test_ge_operator() {
             libc::ioctl(0, 0, u64::from(u32::MAX));
             libc::ioctl(0, 0, u64::from(u32::MAX) + 1);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -249,7 +248,7 @@ fn test_ge_operator() {
         || unsafe {
             libc::ioctl(0, 0, 1);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -266,7 +265,7 @@ fn test_gt_operator() {
         || unsafe {
             libc::ioctl(0, (KVM_GET_PIT2 + 1) as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -274,7 +273,7 @@ fn test_gt_operator() {
         || unsafe {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -291,7 +290,7 @@ fn test_gt_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 11);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -299,7 +298,7 @@ fn test_gt_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -317,7 +316,7 @@ fn test_le_operator() {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
             libc::ioctl(0, (KVM_GET_PIT2 - 1) as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -325,7 +324,7 @@ fn test_le_operator() {
         || unsafe {
             libc::ioctl(0, (KVM_GET_PIT2 + 1) as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -343,7 +342,7 @@ fn test_le_operator() {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
             libc::ioctl(0, 0, u64::from(u32::MAX) + 9);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -351,7 +350,7 @@ fn test_le_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 11);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -368,7 +367,7 @@ fn test_lt_operator() {
         || unsafe {
             libc::ioctl(0, (KVM_GET_PIT2 - 1) as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -376,7 +375,7 @@ fn test_lt_operator() {
         || unsafe {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -393,7 +392,7 @@ fn test_lt_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 9);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -401,7 +400,7 @@ fn test_lt_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::from(u32::MAX) + 10);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -426,7 +425,7 @@ fn test_masked_eq_operator() {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
             libc::ioctl(0, KVM_GET_PIT2_MSB as IoctlRequest);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -434,7 +433,7 @@ fn test_masked_eq_operator() {
         || unsafe {
             libc::ioctl(0, KVM_GET_PIT2_LSB as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -456,7 +455,7 @@ fn test_masked_eq_operator() {
             libc::ioctl(0, 0, u64::from(u32::MAX));
             libc::ioctl(0, 0, u64::MAX);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -464,7 +463,7 @@ fn test_masked_eq_operator() {
         || unsafe {
             libc::ioctl(0, 0, 0);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -481,7 +480,7 @@ fn test_ne_operator() {
         || unsafe {
             libc::ioctl(0, 0);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -489,7 +488,7 @@ fn test_ne_operator() {
         || unsafe {
             libc::ioctl(0, KVM_GET_PIT2 as IoctlRequest);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 
     // check use case for QWORD
@@ -503,7 +502,7 @@ fn test_ne_operator() {
         || unsafe {
             libc::ioctl(0, 0, 0);
         },
-        Some(false),
+        Errno::NotEquals(FAILURE_CODE),
     );
     // check syscalls that are not supposed to work
     validate_seccomp_filter(
@@ -511,7 +510,7 @@ fn test_ne_operator() {
         || unsafe {
             libc::ioctl(0, 0, u64::MAX);
         },
-        Some(true),
+        Errno::Equals(FAILURE_CODE),
     );
 }
 
@@ -557,7 +556,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 12);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -565,7 +564,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 14);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -573,7 +572,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 21);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -581,7 +580,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 39);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -589,7 +588,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(1, 0, 15);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -597,7 +596,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, u32::MAX as u64 + 41);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -605,7 +604,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::madvise(std::ptr::null_mut(), 0, 0);
             },
-            Some(false),
+            Errno::NotEquals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -613,7 +612,7 @@ fn test_complex_filter() {
             || unsafe {
                 assert!(libc::getpid() > 0);
             },
-            None,
+            Errno::None,
         );
     }
 
@@ -624,7 +623,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 13);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -632,7 +631,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 16);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -640,7 +639,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 17);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -648,7 +647,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 18);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -656,7 +655,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 19);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -664,7 +663,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, 20);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -672,7 +671,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::ioctl(0, 0, u32::MAX as u64 + 42);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -680,7 +679,7 @@ fn test_complex_filter() {
             || unsafe {
                 libc::madvise(std::ptr::null_mut(), 1, 0);
             },
-            Some(true),
+            Errno::Equals(FAILURE_CODE),
         );
 
         validate_seccomp_filter(
@@ -688,7 +687,7 @@ fn test_complex_filter() {
             || unsafe {
                 assert_eq!(libc::getuid() as i32, -FAILURE_CODE);
             },
-            None,
+            Errno::None,
         );
     }
 }
