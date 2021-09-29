@@ -1,6 +1,6 @@
 [package]
 name = "seccompiler"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Amazon Firecracker Team <firecracker-maintainers@amazon.com>"]
 description = "Provides easy-to-use seccomp-bpf jailing."
 repository = "https://github.com/rust-vmm/seccompiler"
