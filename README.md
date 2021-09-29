@@ -288,6 +288,15 @@ It’s interesting to note that installing the filter does not take ownership or
 invalidate the BPF program, thanks to the kernel which performs a
 `copy_from_user` on the program before installing it.
 
+### Feature documentation
+
+The documentation on [docs.rs](https://docs.rs/seccompiler/)
+does not include the feature-gated json functionality.
+
+In order to view the documentation including the optional json feature, you may
+run:
+`cargo doc --open --all-features`
+
 ## Seccomp best practices
 
 - Before installing a filter, make sure that the current kernel version
