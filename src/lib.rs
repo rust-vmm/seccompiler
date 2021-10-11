@@ -62,11 +62,11 @@
 //! It allows any other syscalls.
 //!
 //! ```
-//! use std::convert::TryInto;
 //! use seccompiler::{
-//!     BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition,
-//!     SeccompFilter, SeccompRule
+//!     BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter,
+//!     SeccompRule,
 //! };
+//! use std::convert::TryInto;
 //!
 //! let filter: BpfProgram = SeccompFilter::new(
 //!     vec![
@@ -77,23 +77,28 @@
 //!                 SeccompRule::new(vec![
 //!                     SeccompCondition::new(
 //!                         1,
-//!                       SeccompCmpArgLen::Dword,
+//!                         SeccompCmpArgLen::Dword,
 //!                         SeccompCmpOp::Eq,
 //!                         libc::F_SETFD as u64,
-//!                     ).unwrap(),
+//!                     )
+//!                     .unwrap(),
 //!                     SeccompCondition::new(
 //!                         2,
 //!                         SeccompCmpArgLen::Dword,
 //!                         SeccompCmpOp::Eq,
 //!                         libc::FD_CLOEXEC as u64,
-//!                     ).unwrap(),
-//!                 ]).unwrap(),
+//!                     )
+//!                     .unwrap(),
+//!                 ])
+//!                 .unwrap(),
 //!                 SeccompRule::new(vec![SeccompCondition::new(
 //!                     1,
 //!                     SeccompCmpArgLen::Dword,
 //!                     SeccompCmpOp::Eq,
 //!                     libc::F_GETFD as u64,
-//!                 ).unwrap()]).unwrap(),
+//!                 )
+//!                 .unwrap()])
+//!                 .unwrap(),
 //!             ],
 //!         ),
 //!     ]
@@ -102,7 +107,10 @@
 //!     SeccompAction::Allow,
 //!     SeccompAction::Trap,
 //!     std::env::consts::ARCH.try_into().unwrap(),
-//! ).unwrap().try_into().unwrap();
+//! )
+//! .unwrap()
+//! .try_into()
+//! .unwrap();
 //!
 //! seccompiler::apply_filter(&filter).unwrap();
 //! ```
@@ -162,7 +170,8 @@
 //! let filter_map: BpfMap = seccompiler::compile_from_json(
 //!     json_input.as_bytes(),
 //!     std::env::consts::ARCH.try_into().unwrap(),
-//! ).unwrap();
+//! )
+//! .unwrap();
 //! let filter = filter_map.get("main_thread").unwrap();
 //!
 //! seccompiler::apply_filter(&filter).unwrap();
@@ -174,7 +183,6 @@
 //! [`SeccompCondition`]: struct.SeccompCondition.html
 //! [`SeccompRule`]: struct.SeccompRule.html
 //! [`SeccompAction`]: enum.SeccompAction.html
-//!
 
 mod backend;
 #[cfg(feature = "json")]

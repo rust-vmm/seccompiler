@@ -30,10 +30,9 @@ impl SeccompCondition {
     /// # Example
     ///
     /// ```
-    /// use seccompiler::{SeccompCondition, SeccompCmpArgLen, SeccompCmpOp};
+    /// use seccompiler::{SeccompCmpArgLen, SeccompCmpOp, SeccompCondition};
     ///
-    /// let condition =
-    ///     SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap();
+    /// let condition = SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap();
     /// ```
     ///
     /// [`SeccompCondition`]: struct.SeccompCondition.html
@@ -91,7 +90,6 @@ impl SeccompCondition {
     /// # Arguments
     ///
     /// * `offset` - The given jump offset to the start of the next rule.
-    ///
     fn into_eq_bpf(self, offset: u8) -> Vec<sock_filter> {
         let (msb, lsb) = self.split_value();
         let (msb_offset, lsb_offset) = self.get_data_offsets();
