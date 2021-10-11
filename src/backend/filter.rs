@@ -34,11 +34,10 @@ impl SeccompFilter {
     /// # Example
     ///
     /// ```
-    /// use std::convert::TryInto;
     /// use seccompiler::{
-    ///     SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter,
-    ///     SeccompRule,
+    ///     SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule,
     /// };
+    /// use std::convert::TryInto;
     ///
     /// let filter = SeccompFilter::new(
     ///     vec![
@@ -52,20 +51,25 @@ impl SeccompFilter {
     ///                         SeccompCmpArgLen::Dword,
     ///                         SeccompCmpOp::Eq,
     ///                         libc::F_SETFD as u64,
-    ///                     ).unwrap(),
+    ///                     )
+    ///                     .unwrap(),
     ///                     SeccompCondition::new(
     ///                         2,
     ///                         SeccompCmpArgLen::Dword,
     ///                         SeccompCmpOp::Eq,
     ///                         libc::FD_CLOEXEC as u64,
-    ///                     ).unwrap(),
-    ///                 ]).unwrap(),
+    ///                     )
+    ///                     .unwrap(),
+    ///                 ])
+    ///                 .unwrap(),
     ///                 SeccompRule::new(vec![SeccompCondition::new(
     ///                     1,
     ///                     SeccompCmpArgLen::Dword,
     ///                     SeccompCmpOp::Eq,
     ///                     libc::F_GETFD as u64,
-    ///                 ).unwrap()]).unwrap(),
+    ///                 )
+    ///                 .unwrap()])
+    ///                 .unwrap(),
     ///             ],
     ///         ),
     ///     ]

@@ -27,12 +27,13 @@ impl SeccompRule {
     /// # Example
     ///
     /// ```
-    /// use seccompiler::{SeccompCondition, SeccompCmpArgLen, SeccompCmpOp, SeccompRule};
+    /// use seccompiler::{SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompRule};
     ///
     /// let rule = SeccompRule::new(vec![
     ///     SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap(),
     ///     SeccompCondition::new(1, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, 1).unwrap(),
-    /// ]).unwrap();
+    /// ])
+    /// .unwrap();
     /// ```
     ///
     /// [`SeccompCondition`]: struct.SeccompCondition.html
