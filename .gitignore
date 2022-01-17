@@ -1,1 +1,3 @@
 /target
+/.kernel
+Cargo.lock
