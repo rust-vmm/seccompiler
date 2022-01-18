@@ -157,7 +157,7 @@ run_validation() {
 
     # Perform comparison. Tables should be identical, except for the timestamp
     # comment line.
-    diff -I "\/\/ Generated on:.*" $path_to_table $path_to_test_table || {
+    diff -I "\/\/ Generated on:.*" -I "\/\/ Copyright .*" $path_to_table $path_to_test_table || {
         echo ""
         echo "Syscall table validation failed."
         echo "Make sure they haven't been mistakenly altered."
