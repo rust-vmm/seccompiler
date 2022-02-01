@@ -69,7 +69,7 @@ impl Display for Error {
                     ARG_NUMBER_MAX
                 )
             }
-            InvalidTargetArch(arch) => write!(f, "Invalid target arch: {}.", arch.to_string()),
+            InvalidTargetArch(arch) => write!(f, "Invalid target arch: {}.", arch),
         }
     }
 }
