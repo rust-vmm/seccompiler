@@ -272,6 +272,18 @@ impl Display for Error {
     }
 }
 
+impl From<BackendError> for Error {
+    fn from(value: BackendError) -> Self {
+        Self::Backend(value)
+    }
+}
+#[cfg(feature = "json")]
+impl From<JsonFrontendError> for Error {
+    fn from(value: JsonFrontendError) -> Self {
+        Self::JsonFrontend(value)
+    }
+}
+
 /// Apply a BPF filter to the calling thread.
 ///
 /// # Arguments
@@ -325,14 +337,13 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
 #[cfg(feature = "json")]
 pub fn compile_from_json<R: Read>(reader: R, arch: TargetArch) -> Result<BpfMap> {
     // Run the frontend.
-    let seccomp_filters: HashMap<String, SeccompFilter> = JsonCompiler::new(arch)
-        .compile(reader)
-        .map_err(Error::JsonFrontend)?;
+    let seccomp_filters: HashMap<String, SeccompFilter> =
+        JsonCompiler::new(arch).compile(reader)?;
 
     // Run the backend.
     let mut bpf_data: BpfMap = BpfMap::with_capacity(seccomp_filters.len());
     for (name, seccomp_filter) in seccomp_filters {
-        bpf_data.insert(name, seccomp_filter.try_into().map_err(Error::Backend)?);
+        bpf_data.insert(name, seccomp_filter.try_into()?);
     }
 
     Ok(bpf_data)
