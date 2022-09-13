@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
 use std::collections::BTreeMap;
-use std::convert::{Into, TryFrom, TryInto};
 
 use crate::backend::bpf::*;
 use crate::backend::rule::SeccompRule;

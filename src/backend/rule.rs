@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
 use crate::backend::{bpf::*, condition::SeccompCondition, Error, Result};
-use std::convert::{From, TryFrom};
 
 /// Rule that a filter attempts to match for a syscall.
 ///

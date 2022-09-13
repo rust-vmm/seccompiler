@@ -16,7 +16,6 @@
 //! [`SeccompCmpArgLen`](enum.SeccompCmpArgLen.html).
 
 use std::collections::{BTreeMap, HashMap};
-use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::io::Read;
 use std::result;
