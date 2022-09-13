@@ -9,7 +9,7 @@ use crate::backend::rule::SeccompRule;
 use crate::backend::{Error, Result, SeccompAction, TargetArch};
 
 /// Filter containing rules assigned to syscall numbers.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
     rules: BTreeMap<i64, Vec<SeccompRule>>,

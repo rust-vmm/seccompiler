@@ -5,7 +5,7 @@ use super::{Error, Result, SeccompCmpArgLen, SeccompCmpOp};
 use crate::backend::bpf::*;
 
 /// Condition that a syscall must match in order to satisfy a rule.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeccompCondition {
     /// Index of the argument that is to be compared.
     arg_index: u8,
