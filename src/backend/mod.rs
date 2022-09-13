@@ -17,7 +17,6 @@ pub use rule::SeccompRule;
 use serde::Deserialize;
 
 use core::fmt::Formatter;
-use std::convert::TryFrom;
 use std::fmt::Display;
 
 use bpf::{
