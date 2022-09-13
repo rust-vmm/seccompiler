@@ -139,7 +139,7 @@ pub const AUDIT_ARCH_AARCH64: u32 = 183 | 0x8000_0000 | 0x4000_0000;
 // We cannot use the `libc::sock_filter` definition since it doesn't implement `Debug` and
 // `PartialEq`.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct sock_filter {
     /// Code of the instruction.
     pub code: ::std::os::raw::c_ushort,

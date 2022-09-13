@@ -11,7 +11,7 @@ use std::convert::{From, TryFrom};
 /// [`SeccompFilter`] is triggered.
 ///
 /// [`SeccompFilter`]: struct.SeccompFilter.html
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeccompRule {
     /// Conditions of rule that need to match in order for the rule to get matched.
     conditions: Vec<SeccompCondition>,

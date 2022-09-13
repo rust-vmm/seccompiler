@@ -32,7 +32,7 @@ pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
 type Result<T> = std::result::Result<T, Error>;
 
 /// Backend-related errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     /// Attempting to associate an empty vector of conditions to a rule.
     EmptyRule,
@@ -76,7 +76,7 @@ impl Display for Error {
 
 /// Supported target architectures.
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TargetArch {
     /// x86_64 arch
     x86_64,
@@ -111,7 +111,7 @@ impl TryFrom<&str> for TargetArch {
     derive(Deserialize),
     serde(rename_all = "snake_case")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SeccompCmpOp {
     /// Argument value is equal to the specified value.
     Eq,
@@ -131,7 +131,7 @@ pub enum SeccompCmpOp {
 
 /// Seccomp argument value length.
 #[cfg_attr(feature = "json", derive(Deserialize), serde(rename_all = "lowercase"))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SeccompCmpArgLen {
     /// Argument value length is 4 bytes.
     Dword,
@@ -145,7 +145,7 @@ pub enum SeccompCmpArgLen {
     derive(Deserialize),
     serde(rename_all = "snake_case")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SeccompAction {
     /// Allows syscall.
     Allow,
