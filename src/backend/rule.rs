@@ -115,7 +115,7 @@ impl From<SeccompRule> for BpfProgram {
                 // If the nr of statements ever overflows `usize`, the rust vector allocation would
                 // anyway fail.
                 .checked_mul(CONDITION_MAX_LEN as usize)
-                .unwrap() as usize,
+                .unwrap(),
         );
         let mut offset = 1;
 
