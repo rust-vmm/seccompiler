@@ -297,6 +297,7 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
         return Err(Error::EmptyFilter);
     }
 
+    // SAFETY:
     // Safe because syscall arguments are valid.
     let rc = unsafe { libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) };
     if rc != 0 {
@@ -309,6 +310,7 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
     };
     let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
 
+    // SAFETY:
     // Safe because the kernel performs a `copy_from_user` on the filter and leaves the memory
     // untouched. We can therefore use a reference to the BpfProgram, without needing ownership.
     let rc = unsafe {
