@@ -208,6 +208,10 @@ pub use backend::{
     SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule, TargetArch,
 };
 
+// Until https://github.com/rust-lang/libc/issues/3342 is fixed, define locally
+// From <linux/seccomp.h>
+const SECCOMP_SET_MODE_FILTER: libc::c_int = 1;
+
 // BPF structure definition for filter array.
 // See /usr/include/linux/filter.h .
 #[repr(C)]
@@ -231,6 +235,11 @@ pub enum Error {
     EmptyFilter,
     /// System error related to calling `prctl`.
     Prctl(io::Error),
+    /// System error related to calling `seccomp` syscall.
+    Seccomp(io::Error),
+    /// Returned when calling `seccomp` with the thread sync flag (TSYNC) fails. Contains the pid
+    /// of the thread that caused the failure.
+    ThreadSync(libc::c_long),
     /// Json Frontend Error.
     #[cfg(feature = "json")]
     JsonFrontend(JsonFrontendError),
@@ -243,6 +252,8 @@ impl std::error::Error for Error {
         match self {
             Backend(error) => Some(error),
             Prctl(error) => Some(error),
+            Seccomp(error) => Some(error),
+            ThreadSync(_) => None,
             #[cfg(feature = "json")]
             JsonFrontend(error) => Some(error),
             _ => None,
@@ -263,6 +274,16 @@ impl Display for Error {
             }
             Prctl(errno) => {
                 write!(f, "Error calling `prctl`: {}", errno)
+            }
+            Seccomp(errno) => {
+                write!(f, "Error calling `seccomp`: {}", errno)
+            }
+            ThreadSync(pid) => {
+                write!(
+                    f,
+                    "Seccomp filter synchronization failed in thread `{}`",
+                    pid
+                )
             }
             #[cfg(feature = "json")]
             JsonFrontend(error) => {
@@ -292,6 +313,30 @@ impl From<JsonFrontendError> for Error {
 ///
 /// [`BpfProgram`]: type.BpfProgram.html
 pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
+    apply_filter_with_flags(bpf_filter, 0)
+}
+
+/// Apply a BPF filter to the all threads in the process via the TSYNC feature. Please read the
+/// man page for seccomp (`man 2 seccomp`) for more information.
+///
+/// # Arguments
+///
+/// * `bpf_filter` - A reference to the [`BpfProgram`] to be installed.
+///
+/// [`BpfProgram`]: type.BpfProgram.html
+pub fn apply_filter_all_threads(bpf_filter: BpfProgramRef) -> Result<()> {
+    apply_filter_with_flags(bpf_filter, libc::SECCOMP_FILTER_FLAG_TSYNC)
+}
+
+/// Apply a BPF filter to the calling thread.
+///
+/// # Arguments
+///
+/// * `bpf_filter` - A reference to the [`BpfProgram`] to be installed.
+/// * `flags` - A u64 representing a bitset of seccomp's flags parameter.
+///
+/// [`BpfProgram`]: type.BpfProgram.html
+fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> Result<()> {
     // If the program is empty, don't install the filter.
     if bpf_filter.is_empty() {
         return Err(Error::EmptyFilter);
@@ -314,14 +359,21 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
     // Safe because the kernel performs a `copy_from_user` on the filter and leaves the memory
     // untouched. We can therefore use a reference to the BpfProgram, without needing ownership.
     let rc = unsafe {
-        libc::prctl(
-            libc::PR_SET_SECCOMP,
-            libc::SECCOMP_MODE_FILTER,
+        libc::syscall(
+            libc::SYS_seccomp,
+            SECCOMP_SET_MODE_FILTER,
+            flags,
             bpf_prog_ptr,
         )
     };
-    if rc != 0 {
-        return Err(Error::Prctl(io::Error::last_os_error()));
+
+    #[allow(clippy::comparison_chain)]
+    // Per manpage, if TSYNC fails, retcode is >0 and equals the pid of the thread that caused the
+    // failure. Otherwise, error code is -1 and errno is set.
+    if rc < 0 {
+        return Err(Error::Seccomp(io::Error::last_os_error()));
+    } else if rc > 0 {
+        return Err(Error::ThreadSync(rc));
     }
 
     Ok(())
