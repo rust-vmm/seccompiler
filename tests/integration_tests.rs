@@ -714,7 +714,7 @@ fn test_filter_apply() {
         // Apply seccomp filter.
         assert!(matches!(
             apply_filter(&filter).unwrap_err(),
-            Error::Prctl(_)
+            Error::Seccomp(_)
         ));
     })
     .join()
@@ -756,7 +756,7 @@ fn test_filter_apply() {
 
         assert!(matches!(
             apply_filter(&filter).unwrap_err(),
-            Error::Prctl(_)
+            Error::Seccomp(_)
         ));
 
         // test that seccomp level remains 0 on failure.

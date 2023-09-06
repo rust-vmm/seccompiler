@@ -1,3 +1,11 @@
+# Upcoming Release
+
+- Seccomp is now activated via the seccomp syscall, not prctl
+- A new Error::Seccomp variant is added to indictate seccomp syscall failures
+- Add `apply_filter_all_threads` convenience function which uses the seccomp
+  TSYNC feature to synchronize all threads in the process to the same filter
+- A new Error::ThreadSync variant is added to indicate failure to sync threads
+
 # v0.3.0
 
 ## Changed
