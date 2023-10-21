@@ -221,7 +221,7 @@ struct sock_fprog {
 }
 
 /// Library Result type.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 ///`BpfMap` is another type exposed by the library, which maps thread categories to BPF programs.
 pub type BpfMap = HashMap<String, BpfProgram>;

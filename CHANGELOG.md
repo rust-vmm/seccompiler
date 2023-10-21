@@ -1,3 +1,8 @@
+# Upcoming Release
+
+## Changed
+- Add optional `E` argument to `Result` type
+
 # v0.4.0
 
 ## Changed
