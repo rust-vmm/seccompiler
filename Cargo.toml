@@ -14,5 +14,6 @@ json = ["serde", "serde_json"]
 
 [dependencies]
 libc = "^0.2.39"
+linux-syscalls = "^0.3.2"
 serde = { version = "^1.0.27", features = ["derive"], optional = true}
 serde_json = {version = "^1.0.9", optional = true}

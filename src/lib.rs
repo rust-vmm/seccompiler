@@ -197,7 +197,6 @@ use std::io::Read;
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::io;
 
 #[cfg(feature = "json")]
 use frontend::json::{Error as JsonFrontendError, JsonCompiler};
@@ -234,12 +233,12 @@ pub enum Error {
     /// Attempting to install an empty filter.
     EmptyFilter,
     /// System error related to calling `prctl`.
-    Prctl(io::Error),
+    Prctl(linux_syscalls::Errno),
     /// System error related to calling `seccomp` syscall.
-    Seccomp(io::Error),
+    Seccomp(linux_syscalls::Errno),
     /// Returned when calling `seccomp` with the thread sync flag (TSYNC) fails. Contains the pid
     /// of the thread that caused the failure.
-    ThreadSync(libc::c_long),
+    ThreadSync(usize),
     /// Json Frontend Error.
     #[cfg(feature = "json")]
     JsonFrontend(JsonFrontendError),
@@ -344,10 +343,18 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
 
     // SAFETY:
     // Safe because syscall arguments are valid.
-    let rc = unsafe { libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) };
-    if rc != 0 {
-        return Err(Error::Prctl(io::Error::last_os_error()));
-    }
+    unsafe {
+        linux_syscalls::syscall!(
+            [ro]
+            linux_syscalls::Sysno::prctl,
+            libc::PR_SET_NO_NEW_PRIVS,
+            1,
+            0,
+            0,
+            0,
+        )
+        .map_err(Error::Prctl)?;
+    };
 
     let bpf_prog = sock_fprog {
         len: bpf_filter.len() as u16,
@@ -359,24 +366,22 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
     // Safe because the kernel performs a `copy_from_user` on the filter and leaves the memory
     // untouched. We can therefore use a reference to the BpfProgram, without needing ownership.
     let rc = unsafe {
-        libc::syscall(
-            libc::SYS_seccomp,
+        linux_syscalls::syscall!(
+            [ro]
+            linux_syscalls::Sysno::seccomp,
             SECCOMP_SET_MODE_FILTER,
             flags,
             bpf_prog_ptr,
         )
     };
 
-    #[allow(clippy::comparison_chain)]
     // Per manpage, if TSYNC fails, retcode is >0 and equals the pid of the thread that caused the
     // failure. Otherwise, error code is -1 and errno is set.
-    if rc < 0 {
-        return Err(Error::Seccomp(io::Error::last_os_error()));
-    } else if rc > 0 {
-        return Err(Error::ThreadSync(rc));
+    match rc {
+        Ok(0) => Ok(()),
+        Ok(rc) => Err(Error::ThreadSync(rc)),
+        Err(err) => Err(Error::Seccomp(err)),
     }
-
-    Ok(())
 }
 
 /// Compile [`BpfProgram`]s from JSON.

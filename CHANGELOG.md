@@ -1,3 +1,8 @@
+# Upcoming Release
+
+## Changed
+- Use raw syscalls instead of libc
+
 # v0.4.0
 
 ## Changed
