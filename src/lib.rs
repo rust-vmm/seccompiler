@@ -234,7 +234,7 @@ pub enum Error {
     /// Attempting to install an empty filter.
     EmptyFilter,
     /// Attempting to install a filter with more than [`u16::MAX`] instructions.
-    TooManyInstructions,
+    TooManyInstructions(std::num::TryFromIntError),
     /// System error related to calling `prctl`.
     Prctl(io::Error),
     /// System error related to calling `seccomp` syscall.
@@ -258,6 +258,7 @@ impl std::error::Error for Error {
             ThreadSync(_) => None,
             #[cfg(feature = "json")]
             JsonFrontend(error) => Some(error),
+            TooManyInstructions(error) => Some(error),
             _ => None,
         }
     }
@@ -274,7 +275,7 @@ impl Display for Error {
             EmptyFilter => {
                 write!(f, "Cannot install empty filter.")
             }
-            TooManyInstructions => {
+            TooManyInstructions(_) => {
                 write!(
                     f,
                     "Cannot install filter with more than 65535 instructions."
@@ -350,9 +351,13 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
         return Err(Error::EmptyFilter);
     }
 
-    if bpf_filter.len() > u16::MAX as usize {
-        return Err(Error::TooManyInstructions);
-    }
+    let bpf_prog = sock_fprog {
+        len: bpf_filter
+            .len()
+            .try_into()
+            .map_err(Error::TooManyInstructions)?,
+        filter: bpf_filter.as_ptr(),
+    };
 
     // SAFETY:
     // Safe because syscall arguments are valid.
@@ -360,12 +365,6 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
     if rc != 0 {
         return Err(Error::Prctl(io::Error::last_os_error()));
     }
-
-    let bpf_prog = sock_fprog {
-        len: bpf_filter.len() as u16,
-        filter: bpf_filter.as_ptr(),
-    };
-    let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
 
     // SAFETY:
     // Safe because the kernel performs a `copy_from_user` on the filter and leaves the memory
@@ -375,7 +374,7 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
             libc::SYS_seccomp,
             SECCOMP_SET_MODE_FILTER,
             flags,
-            bpf_prog_ptr,
+            &bpf_prog as *const sock_fprog,
         )
     };
 
