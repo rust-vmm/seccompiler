@@ -233,6 +233,8 @@ pub enum Error {
     Backend(BackendError),
     /// Attempting to install an empty filter.
     EmptyFilter,
+    /// Attempting to install a filter with more than [`u16::MAX`] instructions.
+    TooManyInstructions,
     /// System error related to calling `prctl`.
     Prctl(io::Error),
     /// System error related to calling `seccomp` syscall.
@@ -271,6 +273,12 @@ impl Display for Error {
             }
             EmptyFilter => {
                 write!(f, "Cannot install empty filter.")
+            }
+            TooManyInstructions => {
+                write!(
+                    f,
+                    "Cannot install filter with more than 65535 instructions."
+                )
             }
             Prctl(errno) => {
                 write!(f, "Error calling `prctl`: {}", errno)
@@ -340,6 +348,10 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
     // If the program is empty, don't install the filter.
     if bpf_filter.is_empty() {
         return Err(Error::EmptyFilter);
+    }
+
+    if bpf_filter.len() > u16::MAX as usize {
+        return Err(Error::TooManyInstructions);
     }
 
     // SAFETY:

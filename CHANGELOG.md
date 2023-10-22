@@ -1,3 +1,8 @@
+# Upcoming Release
+
+## Changed
+- Do not try to install a programm with more than 65,535 instructions
+
 # v0.4.0
 
 ## Changed
