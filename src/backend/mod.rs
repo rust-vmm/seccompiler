@@ -19,7 +19,7 @@ use serde::Deserialize;
 use core::fmt::Formatter;
 use std::fmt::Display;
 
-use bpf::{
+pub(crate) use bpf::{
     ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN, SECCOMP_RET_ALLOW,
     SECCOMP_RET_ERRNO, SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG,
     SECCOMP_RET_MASK, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
