@@ -233,8 +233,8 @@ pub enum Error {
     Backend(BackendError),
     /// Attempting to install an empty filter.
     EmptyFilter,
-    /// Attempting to install a filter with more than [`u16::MAX`] instructions.
-    TooManyInstructions(std::num::TryFromIntError),
+    /// Attempting to install a filter with more than 4095 instructions.
+    TooManyInstructions,
     /// System error related to calling `prctl`.
     Prctl(io::Error),
     /// System error related to calling `seccomp` syscall.
@@ -258,7 +258,6 @@ impl std::error::Error for Error {
             ThreadSync(_) => None,
             #[cfg(feature = "json")]
             JsonFrontend(error) => Some(error),
-            TooManyInstructions(error) => Some(error),
             _ => None,
         }
     }
@@ -275,10 +274,11 @@ impl Display for Error {
             EmptyFilter => {
                 write!(f, "Cannot install empty filter.")
             }
-            TooManyInstructions(_) => {
+            TooManyInstructions => {
                 write!(
                     f,
-                    "Cannot install filter with more than 65535 instructions."
+                    "Cannot install filter with more than {} instructions.",
+                    backend::BPF_MAX_LEN
                 )
             }
             Prctl(errno) => {
@@ -346,16 +346,14 @@ pub fn apply_filter_all_threads(bpf_filter: BpfProgramRef) -> Result<()> {
 ///
 /// [`BpfProgram`]: type.BpfProgram.html
 fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> Result<()> {
-    // If the program is empty, don't install the filter.
-    if bpf_filter.is_empty() {
-        return Err(Error::EmptyFilter);
-    }
-
+    // If the program size is invalid, don't install the filter.
+    let len = match bpf_filter.len() {
+        len @ 1..=backend::BPF_MAX_LEN => len as u16,
+        0 => return Err(Error::EmptyFilter),
+        _ => return Err(Error::TooManyInstructions),
+    };
     let bpf_prog = sock_fprog {
-        len: bpf_filter
-            .len()
-            .try_into()
-            .map_err(Error::TooManyInstructions)?,
+        len,
         filter: bpf_filter.as_ptr(),
     };
 

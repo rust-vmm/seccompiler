@@ -714,7 +714,7 @@ fn test_filter_apply() {
         // Apply seccomp filter.
         assert!(matches!(
             apply_filter(&filter).unwrap_err(),
-            Error::Seccomp(_)
+            Error::TooManyInstructions
         ));
     })
     .join()
@@ -800,9 +800,9 @@ fn test_u16_overflow() {
     };
     let rules = vec![rule; 0x10_000];
     let err = seccompiler::apply_filter(&rules).unwrap_err();
-    assert!(matches!(err, seccompiler::Error::TooManyInstructions(_)));
+    assert!(matches!(err, seccompiler::Error::TooManyInstructions));
     assert_eq!(
         err.to_string(),
-        "Cannot install filter with more than 65535 instructions."
+        "Cannot install filter with more than 4096 instructions."
     );
 }
