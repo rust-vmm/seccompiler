@@ -26,7 +26,7 @@ impl SeccompFilter {
     /// # Arguments
     ///
     /// * `rules` - Map containing syscall numbers and their respective [`SeccompRule`]s.
-    /// * `mismatch_action` - [`SeccompAction`] taken for all syscalls that do not match any rule.
+    /// * `mismatch_action` - [`SeccompAction`] taken for all syscalls that do not match the filter.
     /// * `match_action` - [`SeccompAction`] taken for system calls that match the filter.
     /// * `target_arch` - Target architecture of the generated BPF filter.
     ///
