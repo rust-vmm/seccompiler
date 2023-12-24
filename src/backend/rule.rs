@@ -17,7 +17,9 @@ pub struct SeccompRule {
 }
 
 impl SeccompRule {
-    /// Creates a new rule. Rules with 0 conditions are not allowed.
+    /// Creates a new rule. Rules with 0 conditions are not allowed; to match a syscall regardless
+    /// of argument values, map the syscall number to an empty vector of rules when constructing
+    /// the [`SeccompFilter`](super::SeccompFilter) instead.
     ///
     /// # Arguments
     ///
