@@ -19,11 +19,13 @@ use serde::Deserialize;
 use core::fmt::Formatter;
 use std::fmt::Display;
 
-use bpf::{
-    ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN, SECCOMP_RET_ALLOW,
-    SECCOMP_RET_ERRNO, SECCOMP_RET_KILL_PROCESS, SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG,
-    SECCOMP_RET_MASK, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
+// See /usr/include/linux/seccomp.h
+use libc::{
+    SECCOMP_RET_ALLOW, SECCOMP_RET_DATA, SECCOMP_RET_ERRNO, SECCOMP_RET_KILL_PROCESS,
+    SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
+
+use bpf::{ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN};
 
 pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
 
@@ -173,11 +175,11 @@ impl From<SeccompAction> for u32 {
     fn from(action: SeccompAction) -> Self {
         match action {
             SeccompAction::Allow => SECCOMP_RET_ALLOW,
-            SeccompAction::Errno(x) => SECCOMP_RET_ERRNO | (x & SECCOMP_RET_MASK),
+            SeccompAction::Errno(x) => SECCOMP_RET_ERRNO | (x & SECCOMP_RET_DATA),
             SeccompAction::KillThread => SECCOMP_RET_KILL_THREAD,
             SeccompAction::KillProcess => SECCOMP_RET_KILL_PROCESS,
             SeccompAction::Log => SECCOMP_RET_LOG,
-            SeccompAction::Trace(x) => SECCOMP_RET_TRACE | (x & SECCOMP_RET_MASK),
+            SeccompAction::Trace(x) => SECCOMP_RET_TRACE | (x & SECCOMP_RET_DATA),
             SeccompAction::Trap => SECCOMP_RET_TRAP,
         }
     }

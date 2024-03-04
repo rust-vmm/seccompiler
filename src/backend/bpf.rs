@@ -75,7 +75,7 @@ pub(crate) fn build_arch_validation_sequence(target_arch: TargetArch) -> Vec<soc
     vec![
         bpf_stmt(BPF_LD | BPF_W | BPF_ABS, SECCOMP_DATA_ARCH_OFFSET as u32),
         bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, audit_arch_value, 1, 0),
-        bpf_stmt(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+        bpf_stmt(BPF_RET | BPF_K, libc::SECCOMP_RET_KILL_PROCESS),
     ]
 }
 
@@ -111,17 +111,6 @@ pub const BPF_JGT: u16 = 0x20;
 pub const BPF_JGE: u16 = 0x30;
 // Test against the value in the K register.
 pub const BPF_K: u16 = 0x00;
-
-// Return codes for BPF programs.
-// See /usr/include/linux/seccomp.h .
-pub const SECCOMP_RET_ALLOW: u32 = 0x7fff_0000;
-pub const SECCOMP_RET_ERRNO: u32 = 0x0005_0000;
-pub const SECCOMP_RET_KILL_THREAD: u32 = 0x0000_0000;
-pub const SECCOMP_RET_KILL_PROCESS: u32 = 0x8000_0000;
-pub const SECCOMP_RET_LOG: u32 = 0x7ffc_0000;
-pub const SECCOMP_RET_TRACE: u32 = 0x7ff0_0000;
-pub const SECCOMP_RET_TRAP: u32 = 0x0003_0000;
-pub const SECCOMP_RET_MASK: u32 = 0x0000_ffff;
 
 // Architecture identifier for x86_64 LE.
 // See /usr/include/linux/audit.h .

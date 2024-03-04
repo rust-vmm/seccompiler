@@ -208,10 +208,6 @@ pub use backend::{
     SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule, TargetArch,
 };
 
-// Until https://github.com/rust-lang/libc/issues/3342 is fixed, define locally
-// From <linux/seccomp.h>
-const SECCOMP_SET_MODE_FILTER: libc::c_int = 1;
-
 // BPF structure definition for filter array.
 // See /usr/include/linux/filter.h .
 #[repr(C)]
@@ -361,7 +357,7 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
     let rc = unsafe {
         libc::syscall(
             libc::SYS_seccomp,
-            SECCOMP_SET_MODE_FILTER,
+            libc::SECCOMP_SET_MODE_FILTER,
             flags,
             bpf_prog_ptr,
         )
