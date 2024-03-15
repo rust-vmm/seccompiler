@@ -19,9 +19,11 @@ test_mode=0
 
 PATH_TO_X86_TABLE="$ROOT_DIR/src/syscall_table/x86_64.rs"
 PATH_TO_AARCH64_TABLE="$ROOT_DIR/src/syscall_table/aarch64.rs"
+PATH_TO_RISCV64_TABLE="$ROOT_DIR/src/syscall_table/riscv64.rs"
 
 PATH_TO_X86_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_x86_64.rs"
 PATH_TO_AARCH64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_aarch64.rs"
+PATH_TO_RISCV64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_riscv64.rs"
 
 generate_syscall_list_x86_64() {
     # the table for x86_64 is nicely formatted here:
@@ -59,6 +61,33 @@ generate_syscall_list_aarch64() {
         sed $replace | awk '{ print "(\""$1"\", "$2")," }' | sort -d)
 }
 
+generate_syscall_list_riscv64() {
+    # filter for substituting `#define`s that point to other macros;
+    # values taken from linux/include/uapi/asm-generic/unistd.h
+    replace+='s/__NR3264_fadvise64/223/;'
+    replace+='s/__NR3264_fcntl/25/;'
+    replace+='s/__NR3264_fstatat/79/;'
+    replace+='s/__NR3264_fstatfs/44/;'
+    replace+='s/__NR3264_fstat/80/;'
+    replace+='s/__NR3264_ftruncate/46/;'
+    replace+='s/__NR3264_lseek/62/;'
+    replace+='s/__NR3264_sendfile/71/;'
+    replace+='s/__NR3264_statfs/43/;'
+    replace+='s/__NR3264_truncate/45/;'
+    replace+='s/__NR3264_mmap/222/;'
+
+    echo "$1" > $path_to_rust_file
+
+    # the riscv64 syscall table is not located in a .tbl file, like x86;
+    # we run gcc's pre-processor to extract the numeric constants from header
+    # files.
+    echo $(gcc -Ilinux/include/uapi -E -dM \
+        -D__BITS_PER_LONG=64 linux/arch/riscv/include/uapi/asm/unistd.h |\
+        grep "#define __NR_" | grep -v "__NR_syscalls" |\
+        grep -v "__NR_arch_specific_syscall" | awk -F '__NR_' '{print $2}' |\
+        sed $replace | awk '{ print "(\""$1"\", "$2")," }' | sort -d)
+}
+
 write_rust_syscall_table() {
     kernel_version=$1
     platform=$2
@@ -68,6 +97,8 @@ write_rust_syscall_table() {
         syscall_list=$(generate_syscall_list_x86_64)
     elif [ "$platform" == "aarch64" ]; then
         syscall_list=$(generate_syscall_list_aarch64)
+    elif [ "$platform" == "riscv64" ]; then
+        syscall_list=$(generate_syscall_list_riscv64)
     else
         die "Invalid platform"
     fi
@@ -145,6 +176,9 @@ run_validation() {
     elif [[ $arch == "aarch64" ]]; then
         path_to_table=$PATH_TO_AARCH64_TABLE
         path_to_test_table=$PATH_TO_AARCH64_TEST_TABLE
+    elif [[ $arch == "riscv64" ]]; then
+        path_to_table=$PATH_TO_RISCV64_TABLE
+        path_to_test_table=$PATH_TO_RISCV64_TEST_TABLE
     else
         die "Invalid platform"
     fi
@@ -206,6 +240,7 @@ cleanup () {
     if [[ $test_mode -eq 1 ]]; then
         rm -rf $PATH_TO_X86_TEST_TABLE
         rm -rf $PATH_TO_AARCH64_TEST_TABLE
+        rm -rf $PATH_TO_RISCV64_TEST_TABLE
     fi
 }
 
@@ -241,6 +276,16 @@ test() {
     validate_kernel_version "$kernel_version_aarch64"
     
     run_validation "aarch64" "$kernel_version_aarch64"
+
+    # Run the validation for riscv64.
+    echo "Validating table for riscv64..."
+
+    kernel_version_riscv64=$(cat $PATH_TO_RISCV64_TABLE | \
+        awk -F '// Kernel version:' '{print $2}' | xargs)
+    
+    validate_kernel_version "$kernel_version_riscv64"
+    
+    run_validation "riscv64" "$kernel_version_riscv64"
 }
 
 main() {
@@ -263,6 +308,11 @@ main() {
         echo "Generating table for aarch64..."
         write_rust_syscall_table \
                 "$kernel_version" "aarch64" "$PATH_TO_AARCH64_TABLE"
+        
+        # generate syscall table for riscv64
+        echo "Generating table for riscv64..."
+        write_rust_syscall_table \
+                "$kernel_version" "riscv64" "$PATH_TO_RISCV64_TABLE"
     fi
 }
 
