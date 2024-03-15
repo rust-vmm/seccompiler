@@ -218,7 +218,6 @@ pub(crate) fn make_syscall_table() -> HashMap<&'static str, i64> {
         ("recvmsg", 212),
         ("remap_file_pages", 234),
         ("removexattr", 14),
-        ("renameat", 38),
         ("renameat2", 276),
         ("request_key", 218),
         ("restart_syscall", 128),

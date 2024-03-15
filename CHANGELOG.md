@@ -1,3 +1,12 @@
+# v0.5.0
+
+## Changed
+- Syscall tables are updated with Linux v6.7.9
+
+## Added
+- Support for riscv64 architecture is added
+
+
 # v0.4.0
 
 ## Changed
