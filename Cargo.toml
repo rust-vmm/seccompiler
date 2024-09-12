@@ -11,6 +11,7 @@ edition = "2021"
 
 [features]
 json = ["serde", "serde_json"]
+seccomp_unotify = []
 
 [dependencies]
 libc = "^0.2.153"
