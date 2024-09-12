@@ -25,6 +25,10 @@ use libc::{
     SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
 
+// Not available in the libc crate yet.
+#[cfg(feature = "seccomp_unotify")]
+const SECCOMP_RET_USER_NOTIF: libc::c_uint = 0x7fc00000;
+
 use bpf::{ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN};
 
 pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
@@ -162,6 +166,9 @@ pub enum SeccompAction {
     Trace(u32),
     /// Sends `SIGSYS` to the calling process.
     Trap,
+    /// Sends a notification to a supervisory process.
+    #[cfg(feature = "seccomp_unotify")]
+    Notify,
 }
 
 impl From<SeccompAction> for u32 {
@@ -181,6 +188,8 @@ impl From<SeccompAction> for u32 {
             SeccompAction::Log => SECCOMP_RET_LOG,
             SeccompAction::Trace(x) => SECCOMP_RET_TRACE | (x & SECCOMP_RET_DATA),
             SeccompAction::Trap => SECCOMP_RET_TRAP,
+            #[cfg(feature = "seccomp_unotify")]
+            SeccompAction::Notify => SECCOMP_RET_USER_NOTIF,
         }
     }
 }
