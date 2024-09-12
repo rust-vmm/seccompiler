@@ -1,3 +1,8 @@
+# Upcoming release
+
+## Added
+- Support for `seccomp_unotify`.
+
 # v0.4.0
 
 ## Changed
