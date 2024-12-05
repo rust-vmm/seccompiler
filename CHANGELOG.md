@@ -1,3 +1,8 @@
+# Upcoming Release
+
+## Added
+- Support for riscv64 architecture is added
+
 # v0.4.0
 
 ## Changed
