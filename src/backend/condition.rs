@@ -338,14 +338,8 @@ mod tests {
         };
         let data_ptr = (&data as *const libc::seccomp_data) as *const u32;
 
-        assert_eq!(
-            unsafe { *(data_ptr.offset((lsb_offset / 4) as isize) as *const u32) },
-            0
-        );
-        assert_eq!(
-            unsafe { *(data_ptr.offset((msb_offset / 4) as isize) as *const u32) },
-            1
-        );
+        assert_eq!(unsafe { *data_ptr.offset((lsb_offset / 4) as isize) }, 0);
+        assert_eq!(unsafe { *data_ptr.offset((msb_offset / 4) as isize) }, 1);
     }
 
     #[test]

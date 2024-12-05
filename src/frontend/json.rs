@@ -237,7 +237,7 @@ impl JsonCompiler {
                 .syscall_table
                 .get_syscall_nr(&syscall_name)
                 .ok_or_else(|| Error::SyscallName(syscall_name.clone(), self.arch))?;
-            let rule_accumulator = rule_map.entry(syscall_nr).or_insert_with(Vec::new);
+            let rule_accumulator = rule_map.entry(syscall_nr).or_default();
 
             if let Some(conditions) = json_rule.conditions {
                 let mut seccomp_conditions = Vec::with_capacity(conditions.len());
