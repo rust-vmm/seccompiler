@@ -5,7 +5,8 @@
             "command": "RUSTFLAGS=\"-D warnings\" cargo build --release --features=json",
             "platform": [
                 "x86_64",
-                "aarch64"
+                "aarch64",
+		"riscv64"
             ]
         },
         {
