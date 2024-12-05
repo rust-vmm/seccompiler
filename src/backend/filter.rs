@@ -297,7 +297,7 @@ mod tests {
         for _ in 1..1000 {
             rules
                 .entry(1)
-                .or_insert_with(std::vec::Vec::new)
+                .or_default()
                 .append(&mut vec![SeccompRule::new(vec![Cond::new(
                     2,
                     ArgLen::Dword,

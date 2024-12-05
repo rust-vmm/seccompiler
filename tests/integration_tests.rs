@@ -50,7 +50,7 @@ fn validate_seccomp_filter(rules: Vec<(i64, Vec<SeccompRule>)>, validation_fn: f
 
     // Make sure the extra needed syscalls are allowed
     for syscall in EXTRA_SYSCALLS.iter() {
-        rule_map.entry(*syscall).or_insert_with(Vec::new);
+        rule_map.entry(*syscall).or_default();
     }
 
     // Build seccomp filter.
