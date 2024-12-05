@@ -25,7 +25,7 @@ use libc::{
     SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
 };
 
-use bpf::{ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_X86_64, BPF_MAX_LEN};
+use bpf::{ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_RISCV64, AUDIT_ARCH_X86_64, BPF_MAX_LEN};
 
 pub use bpf::{sock_filter, BpfProgram, BpfProgramRef};
 
@@ -83,6 +83,8 @@ pub enum TargetArch {
     x86_64,
     /// aarch64 arch
     aarch64,
+    /// riscv64 arch
+    riscv64,
 }
 
 impl TargetArch {
@@ -91,6 +93,7 @@ impl TargetArch {
         match self {
             TargetArch::x86_64 => AUDIT_ARCH_X86_64,
             TargetArch::aarch64 => AUDIT_ARCH_AARCH64,
+            TargetArch::riscv64 => AUDIT_ARCH_RISCV64,
         }
     }
 }
@@ -101,6 +104,7 @@ impl TryFrom<&str> for TargetArch {
         match input.to_lowercase().as_str() {
             "x86_64" => Ok(TargetArch::x86_64),
             "aarch64" => Ok(TargetArch::aarch64),
+            "riscv64" => Ok(TargetArch::riscv64),
             _ => Err(Error::InvalidTargetArch(input.to_string())),
         }
     }
@@ -204,6 +208,15 @@ mod tests {
         assert_eq!(
             TargetArch::try_from("aARch64").unwrap(),
             TargetArch::aarch64
+        );
+
+        assert_eq!(
+            TargetArch::try_from("riscv64").unwrap(),
+            TargetArch::riscv64
+        );
+        assert_eq!(
+            TargetArch::try_from("RiScV64").unwrap(),
+            TargetArch::riscv64
         );
     }
 }
