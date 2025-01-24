@@ -1,7 +1,12 @@
 # Upcoming Release
 
 ## Added
-- Support for riscv64 architecture is added
+- [[#72]](https://github.com/rust-vmm/seccompiler/pull/72): Introduce RISC-V
+  64-bit architecture support.
+
+## Changed
+- [[#78]](https://github.com/rust-vmm/seccompiler/pull/78): Update
+  `syscall_tables` from v6.12 kernel source
 
 # v0.4.0
 
