@@ -25,67 +25,16 @@ PATH_TO_X86_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_x86_64.rs"
 PATH_TO_AARCH64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_aarch64.rs"
 PATH_TO_RISCV64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_riscv64.rs"
 
-generate_syscall_list_x86_64() {
-    # the table for x86_64 is nicely formatted here:
-    # linux/arch/x86/entry/syscalls/syscall_64.tbl
-    echo $(cat linux/arch/x86/entry/syscalls/syscall_64.tbl | grep -v "^#" | \
-        grep -v -e '^$' | awk '{print $2,$3,$1}' | grep -v "^x32" | \
-        awk '{print "(\""$2"\", "$3"),"}' | \
-        sort -d)
+install_header() {
+    make -C "$KERNEL_DIR/linux" ARCH="$1" INSTALL_HDR_PATH="$1-headers" headers_install &>/dev/null
+    echo $KERNEL_DIR/linux/$1-headers/include/asm/unistd_64.h
 }
 
-generate_syscall_list_aarch64() {
-    # filter for substituting `#define`s that point to other macros;
-    # values taken from linux/include/uapi/asm-generic/unistd.h
-    replace+='s/__NR3264_fadvise64/223/;'
-    replace+='s/__NR3264_fcntl/25/;'
-    replace+='s/__NR3264_fstatat/79/;'
-    replace+='s/__NR3264_fstatfs/44/;'
-    replace+='s/__NR3264_fstat/80/;'
-    replace+='s/__NR3264_ftruncate/46/;'
-    replace+='s/__NR3264_lseek/62/;'
-    replace+='s/__NR3264_sendfile/71/;'
-    replace+='s/__NR3264_statfs/43/;'
-    replace+='s/__NR3264_truncate/45/;'
-    replace+='s/__NR3264_mmap/222/;'
-
-    echo "$1" > $path_to_rust_file
-
-    # the aarch64 syscall table is not located in a .tbl file, like x86;
-    # we run gcc's pre-processor to extract the numeric constants from header
-    # files.
-    echo $(gcc -Ilinux/include/uapi -E -dM -D__ARCH_WANT_RENAMEAT\
-        -D__BITS_PER_LONG=64 linux/arch/arm64/include/uapi/asm/unistd.h |\
-        grep "#define __NR_" | grep -v "__NR_syscalls" |\
-        grep -v "__NR_arch_specific_syscall" | awk -F '__NR_' '{print $2}' |\
-        sed $replace | awk '{ print "(\""$1"\", "$2")," }' | sort -d)
-}
-
-generate_syscall_list_riscv64() {
-    # filter for substituting `#define`s that point to other macros;
-    # values taken from linux/include/uapi/asm-generic/unistd.h
-    replace+='s/__NR3264_fadvise64/223/;'
-    replace+='s/__NR3264_fcntl/25/;'
-    replace+='s/__NR3264_fstatat/79/;'
-    replace+='s/__NR3264_fstatfs/44/;'
-    replace+='s/__NR3264_fstat/80/;'
-    replace+='s/__NR3264_ftruncate/46/;'
-    replace+='s/__NR3264_lseek/62/;'
-    replace+='s/__NR3264_sendfile/71/;'
-    replace+='s/__NR3264_statfs/43/;'
-    replace+='s/__NR3264_truncate/45/;'
-    replace+='s/__NR3264_mmap/222/;'
-
-    echo "$1" > $path_to_rust_file
-
-    # the riscv64 syscall table is not located in a .tbl file, like x86;
-    # we run gcc's pre-processor to extract the numeric constants from header
-    # files.
-    echo $(gcc -Ilinux/include/uapi -E -dM \
-        -D__BITS_PER_LONG=64 linux/arch/riscv/include/uapi/asm/unistd.h |\
-        grep "#define __NR_" | grep -v "__NR_syscalls" |\
-        grep -v "__NR_arch_specific_syscall" | awk -F '__NR_' '{print $2}' |\
-        sed $replace | awk '{ print "(\""$1"\", "$2")," }' | sort -d)
+generate_syscall_list() {
+    syscall_header=$(install_header $1)
+    echo $(cat ${syscall_header} | grep "#define __NR_" |\
+        grep -v "__NR_syscalls" | grep -v "__NR_arch_specific_syscall" |\
+        awk -F '__NR_' '{print $2}' | awk '{ print "(\""$1"\", "$2")," }' | sort -d)
 }
 
 write_rust_syscall_table() {
@@ -94,11 +43,11 @@ write_rust_syscall_table() {
     path_to_rust_file=$3
 
     if [ "$platform" == "x86_64" ]; then
-        syscall_list=$(generate_syscall_list_x86_64)
+        syscall_list=$(generate_syscall_list x86_64)
     elif [ "$platform" == "aarch64" ]; then
-        syscall_list=$(generate_syscall_list_aarch64)
+        syscall_list=$(generate_syscall_list arm64)
     elif [ "$platform" == "riscv64" ]; then
-        syscall_list=$(generate_syscall_list_riscv64)
+        syscall_list=$(generate_syscall_list riscv)
     else
         die "Invalid platform"
     fi
