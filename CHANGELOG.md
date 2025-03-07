@@ -1,5 +1,7 @@
 # Upcoming Release
 
+# v0.5.0
+
 ## Added
 - [[#72]](https://github.com/rust-vmm/seccompiler/pull/72): Introduce RISC-V
   64-bit architecture support.
