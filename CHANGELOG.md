@@ -1,5 +1,8 @@
 # Upcoming Release
 
+## Added
+- Support for loongarch64 is added
+
 # v0.5.0
 
 ## Added

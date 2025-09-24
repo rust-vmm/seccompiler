@@ -20,10 +20,12 @@ test_mode=0
 PATH_TO_X86_TABLE="$ROOT_DIR/src/syscall_table/x86_64.rs"
 PATH_TO_AARCH64_TABLE="$ROOT_DIR/src/syscall_table/aarch64.rs"
 PATH_TO_RISCV64_TABLE="$ROOT_DIR/src/syscall_table/riscv64.rs"
+PATH_TO_LOONGARCH64_TABLE="$ROOT_DIR/src/syscall_table/loongarch64.rs"
 
 PATH_TO_X86_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_x86_64.rs"
 PATH_TO_AARCH64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_aarch64.rs"
 PATH_TO_RISCV64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_riscv64.rs"
+PATH_TO_LOONGARCH64_TEST_TABLE="$ROOT_DIR/src/syscall_table/test_loongarch64.rs"
 
 install_header() {
     make -C "$KERNEL_DIR/linux" ARCH="$1" INSTALL_HDR_PATH="$1-headers" headers_install &>/dev/null
@@ -48,6 +50,8 @@ write_rust_syscall_table() {
         syscall_list=$(generate_syscall_list arm64)
     elif [ "$platform" == "riscv64" ]; then
         syscall_list=$(generate_syscall_list riscv)
+    elif [ "$platform" == "loongarch64" ]; then
+        syscall_list=$(generate_syscall_list loongarch)
     else
         die "Invalid platform"
     fi
@@ -128,6 +132,9 @@ run_validation() {
     elif [[ $arch == "riscv64" ]]; then
         path_to_table=$PATH_TO_RISCV64_TABLE
         path_to_test_table=$PATH_TO_RISCV64_TEST_TABLE
+    elif [[ $arch == "loongarch64" ]]; then
+        path_to_table=$PATH_TO_LOONGARCH64_TABLE
+        path_to_test_table=$PATH_TO_LOONGARCH64_TEST_TABLE
     else
         die "Invalid platform"
     fi
@@ -190,6 +197,7 @@ cleanup () {
         rm -rf $PATH_TO_X86_TEST_TABLE
         rm -rf $PATH_TO_AARCH64_TEST_TABLE
         rm -rf $PATH_TO_RISCV64_TEST_TABLE
+        rm -rf $PATH_TO_LOONGARCH64_TEST_TABLE
     fi
 }
 
@@ -235,6 +243,16 @@ test() {
     validate_kernel_version "$kernel_version_riscv64"
     
     run_validation "riscv64" "$kernel_version_riscv64"
+
+    # Run the validation for loongarch64
+    echo "Validating table for loongarch64..."
+
+    kernel_version_loongarch64=$(cat $PATH_TO_LOONGARCH64_TABLE | \
+        awk -F '// Kernel version:' '{print $2}' | xargs)
+
+    validate_kernel_version "$kernel_version_loongarch64"
+
+    run_validation "loongarch64" "$kernel_version_loongarch64"
 }
 
 main() {
@@ -262,6 +280,11 @@ main() {
         echo "Generating table for riscv64..."
         write_rust_syscall_table \
                 "$kernel_version" "riscv64" "$PATH_TO_RISCV64_TABLE"
+
+        # generate syscall table for loongarch64
+        echo "Generating table for loongarch64..."
+        write_rust_syscall_table \
+                "$kernel_version" "loongarch64" "$PATH_TO_LOONGARCH64_TABLE"
     fi
 }
 

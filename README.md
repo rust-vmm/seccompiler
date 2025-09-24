@@ -21,6 +21,7 @@ Supported host architectures:
 - Little-endian x86_64
 - Little-endian aarch64
 - Little-endian riscv64
+- Little-endian loongarch64
 
 ## Short seccomp tutorial
 
