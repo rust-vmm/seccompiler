@@ -15,6 +15,9 @@ use std::convert::TryInto;
 use std::env::consts::ARCH;
 use std::thread;
 
+use libc::SYS_read;
+
+
 // The type of the `req` parameter is different for the `musl` library. This will enable
 // successful build for other non-musl libraries.
 #[cfg(target_env = "musl")]
@@ -788,4 +791,16 @@ fn test_filter_apply() {
     })
     .join()
     .unwrap();
+}
+
+#[test]
+fn test_duplicate_syscall_keys_override_previous_rules() {
+    let rules = vec![
+        (SYS_read, 1),
+        (SYS_read, 2),
+    ];
+
+    let map: BTreeMap<_, _> = rules.into_iter().collect();
+
+    assert_eq!(map.len(), 1);
 }
