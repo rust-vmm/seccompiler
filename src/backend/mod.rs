@@ -23,6 +23,7 @@ use std::fmt::Display;
 use libc::{
     SECCOMP_RET_ALLOW, SECCOMP_RET_DATA, SECCOMP_RET_ERRNO, SECCOMP_RET_KILL_PROCESS,
     SECCOMP_RET_KILL_THREAD, SECCOMP_RET_LOG, SECCOMP_RET_TRACE, SECCOMP_RET_TRAP,
+    SECCOMP_RET_USER_NOTIF,
 };
 
 use bpf::{ARG_NUMBER_MAX, AUDIT_ARCH_AARCH64, AUDIT_ARCH_RISCV64, AUDIT_ARCH_X86_64, BPF_MAX_LEN};
@@ -166,6 +167,8 @@ pub enum SeccompAction {
     Trace(u32),
     /// Sends `SIGSYS` to the calling process.
     Trap,
+    /// Notifies user-space.
+    UserNotif,
 }
 
 impl From<SeccompAction> for u32 {
@@ -185,6 +188,7 @@ impl From<SeccompAction> for u32 {
             SeccompAction::Log => SECCOMP_RET_LOG,
             SeccompAction::Trace(x) => SECCOMP_RET_TRACE | (x & SECCOMP_RET_DATA),
             SeccompAction::Trap => SECCOMP_RET_TRAP,
+            SeccompAction::UserNotif => SECCOMP_RET_USER_NOTIF,
         }
     }
 }
