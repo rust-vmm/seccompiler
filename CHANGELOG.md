@@ -1,6 +1,9 @@
 # Upcoming Release
 
 # v0.5.0
+## Added
+- [[#97]](https://github.com/rust-vmm/seccompiler/pull/97): Added big-endian
+  support and S390X as first big-endian system.
 
 ## Added
 - [[#72]](https://github.com/rust-vmm/seccompiler/pull/72): Introduce RISC-V
