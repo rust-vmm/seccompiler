@@ -3,6 +3,7 @@
 
 mod aarch64;
 mod riscv64;
+mod s390x;
 mod x86_64;
 
 use crate::backend::TargetArch;
@@ -21,6 +22,7 @@ impl SyscallTable {
                 TargetArch::aarch64 => aarch64::make_syscall_table(),
                 TargetArch::x86_64 => x86_64::make_syscall_table(),
                 TargetArch::riscv64 => riscv64::make_syscall_table(),
+                TargetArch::s390x => s390x::make_syscall_table(),
             },
         }
     }
@@ -42,14 +44,17 @@ mod tests {
         let instance_x86_64 = SyscallTable::new(TargetArch::x86_64);
         let instance_aarch64 = SyscallTable::new(TargetArch::aarch64);
         let instance_riscv64 = SyscallTable::new(TargetArch::riscv64);
+        let instance_s390x = SyscallTable::new(TargetArch::s390x);
 
         assert_eq!(instance_x86_64.get_syscall_nr("close").unwrap(), 3);
         assert_eq!(instance_aarch64.get_syscall_nr("close").unwrap(), 57);
         assert_eq!(instance_riscv64.get_syscall_nr("close").unwrap(), 57);
+        assert_eq!(instance_s390x.get_syscall_nr("close").unwrap(), 6);
 
         // invalid syscall name
         assert!(instance_x86_64.get_syscall_nr("nosyscall").is_none());
         assert!(instance_aarch64.get_syscall_nr("nosyscall").is_none());
         assert!(instance_riscv64.get_syscall_nr("nosyscall").is_none());
+        assert!(instance_s390x.get_syscall_nr("nosyscall").is_none());
     }
 }
