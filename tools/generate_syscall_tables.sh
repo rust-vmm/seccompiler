@@ -244,7 +244,7 @@ test() {
     
     run_validation "riscv64" "$kernel_version_riscv64"
 
-    # Run the validation for riscv64.
+    # Run the validation for s390x.
     echo "Validating table for s390x..."
 
     kernel_version_s390x=$(cat $PATH_TO_S390X_TABLE | \
