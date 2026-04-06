@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
 mod aarch64;
+mod loongarch64;
 mod riscv64;
 mod x86_64;
 
@@ -21,6 +22,7 @@ impl SyscallTable {
                 TargetArch::aarch64 => aarch64::make_syscall_table(),
                 TargetArch::x86_64 => x86_64::make_syscall_table(),
                 TargetArch::riscv64 => riscv64::make_syscall_table(),
+                TargetArch::loongarch64 => loongarch64::make_syscall_table(),
             },
         }
     }
@@ -42,14 +44,17 @@ mod tests {
         let instance_x86_64 = SyscallTable::new(TargetArch::x86_64);
         let instance_aarch64 = SyscallTable::new(TargetArch::aarch64);
         let instance_riscv64 = SyscallTable::new(TargetArch::riscv64);
+        let instance_loongarch64 = SyscallTable::new(TargetArch::loongarch64);
 
         assert_eq!(instance_x86_64.get_syscall_nr("close").unwrap(), 3);
         assert_eq!(instance_aarch64.get_syscall_nr("close").unwrap(), 57);
         assert_eq!(instance_riscv64.get_syscall_nr("close").unwrap(), 57);
+        assert_eq!(instance_loongarch64.get_syscall_nr("close").unwrap(), 57);
 
         // invalid syscall name
         assert!(instance_x86_64.get_syscall_nr("nosyscall").is_none());
         assert!(instance_aarch64.get_syscall_nr("nosyscall").is_none());
         assert!(instance_riscv64.get_syscall_nr("nosyscall").is_none());
+        assert!(instance_loongarch64.get_syscall_nr("nosyscall").is_none());
     }
 }

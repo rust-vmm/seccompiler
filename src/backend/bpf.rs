@@ -128,6 +128,11 @@ pub const AUDIT_ARCH_AARCH64: u32 = 183 | 0x8000_0000 | 0x4000_0000;
 // `#define AUDIT_ARCH_RISCV64  (EM_RISCV|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)`
 pub const AUDIT_ARCH_RISCV64: u32 = 243 | 0x8000_0000 | 0x4000_0000;
 
+// Architecture identifier for loongarch64 LE.
+// Defined as:
+// `#define AUDIT_ARCH_LOONGARCH64	(EM_LOONGARCH|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)`
+pub const AUDIT_ARCH_LOONGARCH64: u32 = 258 | 0x8000_0000 | 0x4000_0000;
+
 /// BPF instruction structure definition.
 // See /usr/include/linux/filter.h .
 // We cannot use the `libc::sock_filter` definition since it doesn't implement `Debug` and
