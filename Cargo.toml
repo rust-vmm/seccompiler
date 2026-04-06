@@ -8,9 +8,10 @@ readme = "README.md"
 keywords = ["seccomp", "jail", "sandbox"]
 license = "Apache-2.0 OR BSD-3-Clause"
 edition = "2021"
+rust-version = "1.60"
 
 [features]
-json = ["serde", "serde_json"]
+json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 libc = "^0.2.153"
