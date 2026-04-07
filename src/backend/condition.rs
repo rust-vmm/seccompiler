@@ -75,12 +75,17 @@ impl SeccompCondition {
 
         // Extracts offsets of most significant and least significant halves of argument.
         // Addition cannot overflow because it's at most `arg_offset` + 4 = 68.
-        (arg_offset + SECCOMP_DATA_ARG_SIZE / 2, arg_offset)
+        #[cfg(target_endian = "little")]
+        return (arg_offset + SECCOMP_DATA_ARG_SIZE / 2, arg_offset);
+
+        #[cfg(target_endian = "big")]
+        return (arg_offset, arg_offset + SECCOMP_DATA_ARG_SIZE / 2);
     }
 
     /// Splits the `value` field into 32 bit chunks
     ///
     /// Returns the most significant and least significant halves of the `value`.
+    /// shifts are endianness independent
     fn split_value(&self) -> (u32, u32) {
         ((self.value >> 32) as u32, self.value as u32)
     }
@@ -315,11 +320,22 @@ mod tests {
     fn test_get_data_offsets() {
         let cond = SeccompCondition::new(1, SeccompCmpArgLen::Qword, SeccompCmpOp::Eq, 60).unwrap();
         let (msb_offset, lsb_offset) = cond.get_data_offsets();
+
+        #[cfg(target_endian = "little")]
         assert_eq!(
             (msb_offset, lsb_offset),
             (
                 SECCOMP_DATA_ARGS_OFFSET + SECCOMP_DATA_ARG_SIZE + 4,
                 SECCOMP_DATA_ARGS_OFFSET + SECCOMP_DATA_ARG_SIZE
+            )
+        );
+
+        #[cfg(target_endian = "big")]
+        assert_eq!(
+            (msb_offset, lsb_offset),
+            (
+                SECCOMP_DATA_ARGS_OFFSET + SECCOMP_DATA_ARG_SIZE,
+                SECCOMP_DATA_ARGS_OFFSET + SECCOMP_DATA_ARG_SIZE + 4
             )
         );
 

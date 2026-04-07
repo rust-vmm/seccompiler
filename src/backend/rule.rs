@@ -165,7 +165,11 @@ mod tests {
         ])
         .unwrap();
 
+        #[cfg(target_endian = "little")]
         let (msb_offset, lsb_offset) = { (4, 0) };
+
+        #[cfg(target_endian = "big")]
+        let (msb_offset, lsb_offset) = { (0, 4) };
 
         // Builds hardcoded BPF instructions.
         let instructions = vec![
@@ -203,7 +207,11 @@ mod tests {
         conditions.push(Cond::new(0, ArgLen::Qword, Eq, 0).unwrap());
         let rule = SeccompRule::new(conditions).unwrap();
 
+        #[cfg(target_endian = "little")]
         let (msb_offset, lsb_offset) = { (4, 0) };
+
+        #[cfg(target_endian = "big")]
+        let (msb_offset, lsb_offset) = { (0, 4) };
 
         // Builds hardcoded BPF instructions.
         let mut instructions = vec![

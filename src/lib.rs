@@ -1,7 +1,6 @@
 // Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 #![deny(missing_docs)]
-#![cfg(target_endian = "little")]
 //! Provides easy-to-use Linux seccomp-bpf jailing.
 //!
 //! Seccomp is a Linux kernel security feature which enables a tight control over what kernel-level
@@ -35,6 +34,7 @@
 //! - Little-endian x86_64
 //! - Little-endian aarch64
 //! - Little-endian riscv64
+//! - Big-endian s390x
 //!
 //! # Terminology
 //!
