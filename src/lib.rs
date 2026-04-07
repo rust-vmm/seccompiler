@@ -185,6 +185,8 @@
 //! [`SeccompRule`]: struct.SeccompRule.html
 //! [`SeccompAction`]: enum.SeccompAction.html
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod backend;
 #[cfg(feature = "json")]
 mod frontend;
@@ -200,8 +202,11 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::io;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 #[cfg(feature = "json")]
-use frontend::json::{Error as JsonFrontendError, JsonCompiler};
+pub use frontend::json::Error as JsonFrontendError;
+#[cfg(feature = "json")]
+use frontend::json::JsonCompiler;
 
 // Re-export the IR public types.
 pub use backend::{
@@ -238,6 +243,7 @@ pub enum Error {
     /// of the thread that caused the failure.
     ThreadSync(libc::c_long),
     /// Json Frontend Error.
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     #[cfg(feature = "json")]
     JsonFrontend(JsonFrontendError),
 }
@@ -295,6 +301,7 @@ impl From<BackendError> for Error {
         Self::Backend(value)
     }
 }
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 #[cfg(feature = "json")]
 impl From<JsonFrontendError> for Error {
     fn from(value: JsonFrontendError) -> Self {
