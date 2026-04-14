@@ -14,11 +14,20 @@ use seccompiler::{
 use std::env::consts::ARCH;
 
 fn check_getpid_fails() {
-    let pid = unsafe { libc::getpid() };
+    // Clear any stale `errno` value
+    unsafe {
+        *libc::__errno_location() = 0;
+    }
+    // Go through the generic `syscall` function, as `getpid` does not set `errno`
+    let pid = unsafe { libc::syscall(libc::SYS_getpid) };
     let errno = std::io::Error::last_os_error().raw_os_error().unwrap();
 
     assert_eq!(pid, -1, "getpid should return -1 as set in SeccompFilter");
-    assert_eq!(errno, 0, "there should be no errors");
+    assert_eq!(
+        errno,
+        libc::EPERM,
+        "errno should be EPERM as set in SeccompFilter"
+    );
 }
 
 #[test]
@@ -29,6 +38,10 @@ fn test_tsync() {
     let (setup_tx, setup_rx) = sync_channel::<()>(0);
     let (finish_tx, finish_rx) = sync_channel::<()>(0);
 
+    // Clear any stale `errno` value
+    unsafe {
+        *libc::__errno_location() = 0;
+    }
     // first check getpid is working
     let pid = unsafe { libc::getpid() };
     let errno = std::io::Error::last_os_error().raw_os_error().unwrap();
@@ -47,7 +60,7 @@ fn test_tsync() {
         let filter = SeccompFilter::new(
             rule_map,
             SeccompAction::Allow,
-            SeccompAction::Errno(1u32),
+            SeccompAction::Errno(libc::EPERM as u32),
             ARCH.try_into().unwrap(),
         )
         .unwrap();

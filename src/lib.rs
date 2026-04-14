@@ -381,7 +381,7 @@ fn apply_filter_with_flags(bpf_filter: BpfProgramRef, flags: libc::c_ulong) -> R
 /// # Arguments
 ///
 /// * `reader` - [`std::io::Read`] object containing the JSON data conforming to the
-///    [JSON file format](https://github.com/rust-vmm/seccompiler/blob/master/docs/json_format.md).
+///   [JSON file format](https://github.com/rust-vmm/seccompiler/blob/master/docs/json_format.md).
 /// * `arch` - target architecture of the filter.
 ///
 /// [`BpfProgram`]: type.BpfProgram.html
