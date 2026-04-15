@@ -346,6 +346,11 @@ mod tests {
         // Compares translated filter with hardcoded BPF program.
         let filter = create_test_bpf_filter(ArgLen::Dword);
 
+        #[cfg(target_endian = "little")]
+        let offset = 0;
+        #[cfg(target_endian = "big")]
+        let offset = 4;
+
         let mut instructions = Vec::new();
         instructions.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
         instructions.extend(vec![
@@ -353,28 +358,28 @@ mod tests {
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 6),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + offset),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 3, 0),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 6),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + offset),
             bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 30, 3, 0),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 4),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + offset),
             bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_RET, 0x0003_0000),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 5),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24 + offset),
             bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0b100),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
@@ -394,7 +399,12 @@ mod tests {
 
     #[test]
     fn test_filter_bpf_output_qword() {
-        let filter = create_test_bpf_filter(ArgLen::Qword);
+        let filter: SeccompFilter = create_test_bpf_filter(ArgLen::Qword);
+
+        #[cfg(target_endian = "little")]
+        let (msb_offset, lsb_offset) = (4, 0);
+        #[cfg(target_endian = "big")]
+        let (msb_offset, lsb_offset) = (0, 4);
 
         let mut instructions = Vec::new();
         instructions.extend(build_arch_validation_sequence(ARCH.try_into().unwrap()));
@@ -403,45 +413,45 @@ mod tests {
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 1, 0, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 11),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 10, 6, 0),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 4, 0),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 14, 1, 0),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 12),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 9, 0),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 2),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
             bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 30, 6, 0),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 20, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 7),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 36),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + msb_offset),
             bpf_jump(BPF_JMP | BPF_JGT | BPF_K, 0, 3, 0),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 32 + lsb_offset),
             bpf_jump(BPF_JMP | BPF_JGE | BPF_K, 42, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
             bpf_stmt(BPF_RET, 0x0003_0000),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 9, 0, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 1),
             bpf_stmt(BPF_JMP | BPF_JA, 8),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 28),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24 + msb_offset),
             bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 4),
-            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24),
+            bpf_stmt(BPF_LD | BPF_W | BPF_ABS, 24 + lsb_offset),
             bpf_stmt(BPF_ALU | BPF_AND | BPF_K, 0b100),
             bpf_jump(BPF_JMP | BPF_JEQ | BPF_K, 36 & 0b100, 0, 1),
             bpf_stmt(BPF_RET, 0x7fff_0000),
