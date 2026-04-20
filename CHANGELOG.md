@@ -1,5 +1,9 @@
 # Upcoming Release
 
+- [[#91]](https://github.com/rust-vmm/seccompiler/pull/91): Actually make
+  `JsonFrontendError` type publicly accessible, this type is referred to in a
+  public variant of `Error` but was not accessible outside the crate.
+
 # v0.5.0
 
 ## Added

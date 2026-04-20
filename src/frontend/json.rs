@@ -31,6 +31,7 @@ use serde::{Deserialize, Deserializer};
 type Result<T> = result::Result<T, Error>;
 
 /// Error compiling JSON into IR.
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 #[derive(Debug)]
 pub enum Error {
     /// Backend error creating the `SeccompFilter` IR.
