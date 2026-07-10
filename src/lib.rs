@@ -195,6 +195,7 @@ mod syscall_table;
 use std::convert::TryInto;
 #[cfg(feature = "json")]
 use std::io::Read;
+use std::os::unix::io::{FromRawFd, OwnedFd, RawFd};
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -323,6 +324,52 @@ pub fn apply_filter(bpf_filter: BpfProgramRef) -> Result<()> {
 /// [`BpfProgram`]: type.BpfProgram.html
 pub fn apply_filter_all_threads(bpf_filter: BpfProgramRef) -> Result<()> {
     apply_filter_with_flags(bpf_filter, libc::SECCOMP_FILTER_FLAG_TSYNC)
+}
+
+/// Apply a BPF filter with `SECCOMP_FILTER_FLAG_NEW_LISTENER` and return the
+/// listener fd (Linux 5.0+). [`SeccompAction::UserNotif`] notifications are
+/// consumed via the `SECCOMP_IOCTL_NOTIF_*` ioctls (see `seccomp_unotify(2)`);
+/// at least one rule should use UserNotif, or the listener never fires.
+///
+/// Unlike [`apply_filter`], a successful call returns the positive listener fd.
+///
+/// [`SeccompAction::UserNotif`]: enum.SeccompAction.html#variant.UserNotif
+pub fn apply_filter_with_listener(bpf_filter: BpfProgramRef) -> Result<OwnedFd> {
+    if bpf_filter.is_empty() {
+        return Err(Error::EmptyFilter);
+    }
+
+    // SAFETY: Safe because syscall arguments are valid.
+    let rc = unsafe { libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) };
+    if rc != 0 {
+        return Err(Error::Prctl(io::Error::last_os_error()));
+    }
+
+    let bpf_prog = sock_fprog {
+        len: bpf_filter.len() as u16,
+        filter: bpf_filter.as_ptr(),
+    };
+    let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
+
+    // SAFETY:
+    // Safe because the kernel performs a `copy_from_user` on the filter and leaves the memory
+    // untouched. We can therefore use a reference to the BpfProgram, without needing ownership.
+    let rc = unsafe {
+        libc::syscall(
+            libc::SYS_seccomp,
+            libc::SECCOMP_SET_MODE_FILTER,
+            libc::SECCOMP_FILTER_FLAG_NEW_LISTENER,
+            bpf_prog_ptr,
+        )
+    };
+
+    if rc < 0 {
+        return Err(Error::Seccomp(io::Error::last_os_error()));
+    }
+
+    // SAFETY: on success seccomp(2) with NEW_LISTENER returns a newly-allocated,
+    // open file descriptor; we take ownership and close it on drop.
+    Ok(unsafe { OwnedFd::from_raw_fd(rc as RawFd) })
 }
 
 /// Apply a BPF filter to the calling thread.

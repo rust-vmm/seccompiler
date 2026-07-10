@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use seccompiler::SeccompCmpArgLen::*;
 use seccompiler::SeccompCmpOp::*;
 use seccompiler::{
-    apply_filter, sock_filter, BpfProgram, Error, SeccompAction, SeccompCondition as Cond,
-    SeccompFilter, SeccompRule,
+    apply_filter, apply_filter_with_listener, sock_filter, BpfProgram, Error, SeccompAction,
+    SeccompCondition as Cond, SeccompFilter, SeccompRule,
 };
 use std::convert::TryInto;
 use std::env::consts::ARCH;
@@ -788,4 +788,46 @@ fn test_filter_apply() {
     })
     .join()
     .unwrap();
+}
+
+#[test]
+fn test_apply_filter_with_listener() {
+    use std::os::unix::io::{AsRawFd, OwnedFd};
+
+    // Empty program: rejected without enabling seccomp.
+    assert_eq!(unsafe { libc::prctl(libc::PR_GET_SECCOMP) }, 0);
+    assert!(matches!(
+        apply_filter_with_listener(&Vec::new()).unwrap_err(),
+        Error::EmptyFilter
+    ));
+    assert_eq!(unsafe { libc::prctl(libc::PR_GET_SECCOMP) }, 0);
+
+    // Install in a thread (filters are process-wide). getpid routes to UserNotif
+    // but is never called, so the thread exits cleanly. Requires Linux 5.0+.
+    let fd: OwnedFd = thread::spawn(|| {
+        // Empty rule chain ⇒ filter match_action (no dependency on per-rule actions).
+        let rules: BTreeMap<i64, Vec<SeccompRule>> =
+            [(libc::SYS_getpid, vec![])].into_iter().collect();
+
+        let filter = SeccompFilter::new(
+            rules,
+            SeccompAction::Allow,     // mismatch: everything else allowed
+            SeccompAction::UserNotif, // match: getpid → USER_NOTIF
+            ARCH.try_into().unwrap(),
+        )
+        .unwrap();
+        let prog: BpfProgram = filter.try_into().unwrap();
+
+        apply_filter_with_listener(&prog).unwrap()
+    })
+    .join()
+    .unwrap();
+
+    let raw = fd.as_raw_fd();
+    assert!(raw >= 0, "listener fd must be non-negative, got {raw}");
+    assert!(
+        unsafe { libc::fcntl(raw, libc::F_GETFD) } >= 0,
+        "listener fd {raw} should be a valid open fd"
+    );
+    // OwnedFd closes on drop.
 }
