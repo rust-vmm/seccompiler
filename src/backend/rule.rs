@@ -1,25 +1,32 @@
 // Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
-use crate::backend::{bpf::*, condition::SeccompCondition, Error, Result};
+use crate::backend::{bpf::*, condition::SeccompCondition, Error, Result, SeccompAction};
 
 /// Rule that a filter attempts to match for a syscall.
 ///
-/// If all conditions match then rule gets matched.
-/// A syscall can have many rules associated. If either of them matches, the `match_action` of the
-/// [`SeccompFilter`] is triggered.
+/// If all conditions match then the rule is matched. A syscall can have many
+/// rules associated; the first match wins. A matched rule with its own
+/// [`action`](Self::new_with_action) takes that action, otherwise the
+/// `match_action` of the [`SeccompFilter`] is triggered.
 ///
 /// [`SeccompFilter`]: struct.SeccompFilter.html
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeccompRule {
     /// Conditions of rule that need to match in order for the rule to get matched.
     conditions: Vec<SeccompCondition>,
+    /// Action to take when this rule matches. `None` falls back to the
+    /// [`SeccompFilter`]'s `match_action`.
+    action: Option<SeccompAction>,
 }
 
 impl SeccompRule {
     /// Creates a new rule. Rules with 0 conditions are not allowed; to match a syscall regardless
     /// of argument values, map the syscall number to an empty vector of rules when constructing
     /// the [`SeccompFilter`](super::SeccompFilter) instead.
+    ///
+    /// On match this rule triggers the filter's `match_action`; for a per-rule
+    /// action see [`new_with_action`](Self::new_with_action).
     ///
     /// # Arguments
     ///
@@ -39,17 +46,51 @@ impl SeccompRule {
     ///
     /// [`SeccompCondition`]: struct.SeccompCondition.html
     pub fn new(conditions: Vec<SeccompCondition>) -> Result<Self> {
-        let instance = Self { conditions };
+        let instance = Self {
+            conditions,
+            action: None,
+        };
         instance.validate()?;
 
         Ok(instance)
     }
 
+    /// Creates a rule that takes `action` on match, overriding the filter's
+    /// `match_action`. Requires at least one condition; for an unconditional
+    /// per-syscall action use [`always`](Self::always).
+    pub fn new_with_action(
+        conditions: Vec<SeccompCondition>,
+        action: SeccompAction,
+    ) -> Result<Self> {
+        if conditions.is_empty() {
+            return Err(Error::EmptyRule);
+        }
+        let instance = Self {
+            conditions,
+            action: Some(action),
+        };
+        instance.validate()?;
+
+        Ok(instance)
+    }
+
+    /// An unconditional rule: matches the syscall regardless of arguments and
+    /// takes `action`.
+    pub fn always(action: SeccompAction) -> Self {
+        SeccompRule {
+            conditions: Vec::new(),
+            action: Some(action),
+        }
+    }
+
+    pub(crate) fn action(&self) -> Option<SeccompAction> {
+        self.action.clone()
+    }
+
     /// Performs semantic checks on the SeccompRule.
     fn validate(&self) -> Result<()> {
-        // Rules with no conditions are not allowed. Syscalls mappings to empty rule vectors are to
-        // be used instead, for matching only on the syscall number.
-        if self.conditions.is_empty() {
+        // A condition-less rule is only valid via `always` (which sets an action).
+        if self.conditions.is_empty() && self.action.is_none() {
             return Err(Error::EmptyRule);
         }
 
@@ -148,12 +189,30 @@ mod tests {
     use super::SeccompRule;
     use crate::backend::bpf::*;
     use crate::backend::{
-        Error, SeccompCmpArgLen as ArgLen, SeccompCmpOp::*, SeccompCondition as Cond,
+        Error, SeccompAction, SeccompCmpArgLen as ArgLen, SeccompCmpOp::*, SeccompCondition as Cond,
     };
 
     #[test]
     fn test_validate_rule() {
         assert_eq!(SeccompRule::new(vec![]).unwrap_err(), Error::EmptyRule);
+    }
+
+    #[test]
+    fn test_new_with_action_requires_conditions() {
+        assert_eq!(
+            SeccompRule::new_with_action(vec![], SeccompAction::Trap).unwrap_err(),
+            Error::EmptyRule
+        );
+    }
+
+    #[test]
+    fn test_new_with_action_and_always_carry_action() {
+        let cond = Cond::new(0, ArgLen::Dword, Eq, 1).unwrap();
+        let rule = SeccompRule::new_with_action(vec![cond], SeccompAction::Trap).unwrap();
+        assert_eq!(rule.action(), Some(SeccompAction::Trap));
+
+        let always = SeccompRule::always(SeccompAction::Trap);
+        assert_eq!(always.action(), Some(SeccompAction::Trap));
     }
 
     // Checks that rule gets translated correctly into BPF statements.
