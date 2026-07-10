@@ -789,3 +789,95 @@ fn test_filter_apply() {
     .join()
     .unwrap();
 }
+
+#[test]
+fn test_per_rule_action_runtime() {
+    // Per-rule Errno on getpid; everything else allowed via mismatch_action.
+    // Do not map unrelated syscalls to empty rule chains: empty chain ⇒
+    // match_action (here Trap), which would SIGSYS on thread teardown.
+    // match_action is only a distinct dummy for SeccompFilter::validate.
+    let rule_map: BTreeMap<i64, Vec<SeccompRule>> = [(
+        libc::SYS_getpid,
+        vec![SeccompRule::always(SeccompAction::Errno(
+            libc::EPERM as u32,
+        ))],
+    )]
+    .into_iter()
+    .collect();
+
+    let filter = SeccompFilter::new(
+        rule_map,
+        SeccompAction::Allow,
+        SeccompAction::Trap,
+        ARCH.try_into().unwrap(),
+    )
+    .unwrap();
+    let prog: BpfProgram = filter.try_into().unwrap();
+
+    thread::spawn(move || {
+        apply_filter(&prog).unwrap();
+
+        // SAFETY: clear errno then issue getpid via syscall(2) so errno is set.
+        unsafe {
+            *libc::__errno_location() = 0;
+        }
+        let rc = unsafe { libc::syscall(libc::SYS_getpid) };
+        let errno = std::io::Error::last_os_error().raw_os_error().unwrap();
+        assert_eq!(rc, -1, "getpid should be blocked by per-rule Errno");
+        assert_eq!(errno, libc::EPERM);
+
+        // Unrelated syscall still allowed (mismatch_action).
+        let tid = unsafe { libc::syscall(libc::SYS_gettid) };
+        assert!(tid > 0, "gettid should be allowed, got {tid}");
+    })
+    .join()
+    .unwrap();
+}
+
+#[test]
+fn test_per_rule_conditional_action_runtime() {
+    // Deny write(fd == 1) with a per-rule Errno; other fds fall through to
+    // mismatch Allow. match_action is an unused distinct dummy.
+    let rule_map: BTreeMap<i64, Vec<SeccompRule>> = [(
+        libc::SYS_write,
+        vec![SeccompRule::new_with_action(
+            vec![Cond::new(0, Dword, Eq, 1).unwrap()],
+            SeccompAction::Errno(libc::EPERM as u32),
+        )
+        .unwrap()],
+    )]
+    .into_iter()
+    .collect();
+
+    let filter = SeccompFilter::new(
+        rule_map,
+        SeccompAction::Allow,
+        SeccompAction::Trap,
+        ARCH.try_into().unwrap(),
+    )
+    .unwrap();
+    let prog: BpfProgram = filter.try_into().unwrap();
+
+    thread::spawn(move || {
+        apply_filter(&prog).unwrap();
+
+        let buf = b"x";
+        // SAFETY: write(2) with a valid buffer; we only check the return/errno.
+        unsafe {
+            *libc::__errno_location() = 0;
+        }
+        let rc = unsafe { libc::syscall(libc::SYS_write, 1i32, buf.as_ptr(), buf.len()) };
+        let errno = std::io::Error::last_os_error().raw_os_error().unwrap();
+        assert_eq!(rc, -1, "write(1, …) should hit per-rule Errno");
+        assert_eq!(errno, libc::EPERM);
+
+        // fd 2 does not match the condition → mismatch Allow.
+        unsafe {
+            *libc::__errno_location() = 0;
+        }
+        let rc = unsafe { libc::syscall(libc::SYS_write, 2i32, buf.as_ptr(), buf.len()) };
+        assert_eq!(rc, 1, "write(2, …) should be allowed");
+    })
+    .join()
+    .unwrap();
+}

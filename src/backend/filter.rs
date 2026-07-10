@@ -129,9 +129,11 @@ impl SeccompFilter {
         let chain: Vec<_> = chain
             .into_iter()
             .map(|rule| {
+                // A rule may override the filter's match_action with its own action.
+                let action = rule.action().unwrap_or_else(|| match_action.clone());
                 let mut bpf: BpfProgram = rule.into();
-                // Last statement is the on-match action of the filter.
-                bpf.push(bpf_stmt(BPF_RET | BPF_K, u32::from(match_action.clone())));
+                // Last statement is the on-match action for this rule.
+                bpf.push(bpf_stmt(BPF_RET | BPF_K, u32::from(action)));
                 bpf
             })
             .collect();
@@ -456,5 +458,126 @@ mod tests {
 
         let bpfprog: BpfProgram = filter.try_into().unwrap();
         assert_eq!(bpfprog, instructions);
+    }
+
+    #[test]
+    fn test_per_rule_action_overrides_match_action() {
+        // syscall 42 takes a per-rule action; syscall 7 falls back to match_action.
+        let rules: BTreeMap<i64, Vec<SeccompRule>> = [
+            (42, vec![SeccompRule::always(SeccompAction::Trap)]),
+            (7, Vec::new()),
+        ]
+        .into_iter()
+        .collect();
+
+        let filter = SeccompFilter::new(
+            rules,
+            SeccompAction::Allow,
+            SeccompAction::Trace(0),
+            ARCH.try_into().unwrap(),
+        )
+        .unwrap();
+
+        let prog: BpfProgram = filter.try_into().unwrap();
+
+        let trap = u32::from(SeccompAction::Trap);
+        let trace = u32::from(SeccompAction::Trace(0));
+        let allow = u32::from(SeccompAction::Allow);
+
+        let rets: Vec<u32> = prog
+            .iter()
+            .filter(|f| f.code == (BPF_RET | BPF_K))
+            .map(|f| f.k)
+            .collect();
+
+        assert!(rets.contains(&trap), "expected Trap, got {rets:?}");
+        assert!(rets.contains(&trace), "expected Trace, got {rets:?}");
+        assert!(rets.contains(&allow), "expected Allow, got {rets:?}");
+    }
+
+    #[test]
+    fn test_first_matching_rule_wins_its_action() {
+        let rules: BTreeMap<i64, Vec<SeccompRule>> = [(
+            42,
+            vec![
+                SeccompRule::always(SeccompAction::Trap),
+                SeccompRule::always(SeccompAction::Log),
+            ],
+        )]
+        .into_iter()
+        .collect();
+
+        let filter = SeccompFilter::new(
+            rules,
+            SeccompAction::Allow,
+            SeccompAction::Trace(0),
+            ARCH.try_into().unwrap(),
+        )
+        .unwrap();
+
+        let prog: BpfProgram = filter.try_into().unwrap();
+        let rets: Vec<u32> = prog
+            .iter()
+            .filter(|f| f.code == (BPF_RET | BPF_K))
+            .map(|f| f.k)
+            .collect();
+
+        assert!(rets.contains(&u32::from(SeccompAction::Trap)));
+        assert!(rets.contains(&u32::from(SeccompAction::Log)));
+        // BPF text can't show runtime selection, so assert RET ordering instead.
+        let trap_pos = rets
+            .iter()
+            .position(|&k| k == u32::from(SeccompAction::Trap))
+            .unwrap();
+        let log_pos = rets
+            .iter()
+            .position(|&k| k == u32::from(SeccompAction::Log))
+            .unwrap();
+        assert!(
+            trap_pos < log_pos,
+            "first rule's action must precede the second's"
+        );
+    }
+
+    #[test]
+    fn test_conditional_rule_action_emitted() {
+        // new_with_action: conditions + per-rule action. The rule's Trap is
+        // emitted; the overridden match_action (Log) is absent.
+        let rules: BTreeMap<i64, Vec<SeccompRule>> = [(
+            42,
+            vec![SeccompRule::new_with_action(
+                vec![Cond::new(0, ArgLen::Dword, Eq, 7).unwrap()],
+                SeccompAction::Trap,
+            )
+            .unwrap()],
+        )]
+        .into_iter()
+        .collect();
+
+        let filter = SeccompFilter::new(
+            rules,
+            SeccompAction::Allow,
+            SeccompAction::Log,
+            ARCH.try_into().unwrap(),
+        )
+        .unwrap();
+
+        let prog: BpfProgram = filter.try_into().unwrap();
+
+        assert!(
+            prog.iter().any(|f| f.code == (BPF_LD | BPF_W | BPF_ABS)),
+            "expected an argument load"
+        );
+        assert!(
+            prog.iter()
+                .any(|f| { f.code == (BPF_RET | BPF_K) && f.k == u32::from(SeccompAction::Trap) }),
+            "expected a Trap return"
+        );
+        assert!(
+            !prog
+                .iter()
+                .any(|f| { f.code == (BPF_RET | BPF_K) && f.k == u32::from(SeccompAction::Log) }),
+            "match_action must not be emitted when overridden"
+        );
     }
 }
