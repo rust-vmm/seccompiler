@@ -188,7 +188,7 @@
 mod backend;
 #[cfg(feature = "json")]
 mod frontend;
-#[cfg(feature = "json")]
+#[cfg(feature = "syscall-table")]
 mod syscall_table;
 
 #[cfg(feature = "json")]
@@ -208,6 +208,8 @@ pub use backend::{
     sock_filter, BpfProgram, BpfProgramRef, Error as BackendError, SeccompAction, SeccompCmpArgLen,
     SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule, TargetArch,
 };
+#[cfg(feature = "syscall-table")]
+pub use syscall_table::SyscallTable;
 
 // BPF structure definition for filter array.
 // See /usr/include/linux/filter.h .

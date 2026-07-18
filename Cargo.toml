@@ -10,7 +10,8 @@ license = "Apache-2.0 OR BSD-3-Clause"
 edition = "2021"
 
 [features]
-json = ["serde", "serde_json"]
+json = ["serde", "serde_json", "syscall-table"]
+syscall-table = []
 
 [dependencies]
 libc = "^0.2.153"

@@ -8,13 +8,17 @@ mod x86_64;
 use crate::backend::TargetArch;
 use std::collections::HashMap;
 
-/// Creates and owns a mapping from the arch-specific syscall name to the right number.
+/// Owns a mapping from arch-specific syscall name to syscall number.
+///
+/// Build once with [`new`](Self::new) and reuse it for repeated lookups via
+/// [`get_syscall_nr`](Self::get_syscall_nr).
 #[derive(Debug)]
-pub(crate) struct SyscallTable {
+pub struct SyscallTable {
     map: HashMap<&'static str, i64>,
 }
 
 impl SyscallTable {
+    /// Builds the syscall name -> number table for `arch`.
     pub fn new(arch: TargetArch) -> Self {
         Self {
             map: match arch {
@@ -26,6 +30,8 @@ impl SyscallTable {
     }
 
     /// Returns the arch-specific syscall number based on the given name.
+    ///
+    /// Returns `None` if `sys_name` is not present in the table.
     pub fn get_syscall_nr(&self, sys_name: &str) -> Option<i64> {
         self.map.get(sys_name).copied()
     }

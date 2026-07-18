@@ -11,6 +11,8 @@ use seccompiler::{
     apply_filter, sock_filter, BpfProgram, Error, SeccompAction, SeccompCondition as Cond,
     SeccompFilter, SeccompRule,
 };
+#[cfg(feature = "syscall-table")]
+use seccompiler::{SyscallTable, TargetArch};
 use std::convert::TryInto;
 use std::env::consts::ARCH;
 use std::thread;
@@ -788,4 +790,30 @@ fn test_filter_apply() {
     })
     .join()
     .unwrap();
+}
+
+#[test]
+#[cfg(feature = "syscall-table")]
+fn test_syscall_table_public() {
+    let arch = TargetArch::try_from(ARCH).unwrap();
+    let table = SyscallTable::new(arch);
+
+    assert_eq!(table.get_syscall_nr("close"), Some(libc::SYS_close));
+    assert_eq!(table.get_syscall_nr("read"), Some(libc::SYS_read));
+    assert_eq!(table.get_syscall_nr("write"), Some(libc::SYS_write));
+    assert!(table.get_syscall_nr("this_is_not_a_syscall").is_none());
+
+    // Cross-arch tables stay reachable without the json feature.
+    assert_eq!(
+        SyscallTable::new(TargetArch::x86_64).get_syscall_nr("close"),
+        Some(3)
+    );
+    assert_eq!(
+        SyscallTable::new(TargetArch::aarch64).get_syscall_nr("close"),
+        Some(57)
+    );
+    assert_eq!(
+        SyscallTable::new(TargetArch::riscv64).get_syscall_nr("close"),
+        Some(57)
+    );
 }
